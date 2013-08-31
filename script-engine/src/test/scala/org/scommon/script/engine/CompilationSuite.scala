@@ -15,11 +15,11 @@ import engine._
 @RunWith(classOf[JUnitRunner])
 class CompilationSuite extends FunSuite with ShouldMatchers
 {
-	val sourceDir = new File("testfiles/CompilationSuite")
-	val versionsDir = new File("testfiles/versions")
+	val sourceDir = new File("script-engine/testfiles/CompilationSuite")
+	val versionsDir = new File("script-engine/testfiles/versions")
 
 	test("invoking compilation listeners") {
-		val sourceDir1 = new File("testfiles/CompilationSuite1")
+		val sourceDir1 = new File("script-engine/testfiles/CompilationSuite1")
 		var cnt = 0
 		val config = ScalaScriptEngine.defaultConfig(sourceDir1).copy(compilationListeners = List(
 			version => cnt += 1
@@ -32,8 +32,8 @@ class CompilationSuite extends FunSuite with ShouldMatchers
 	}
 
 	test("multiple source and target dirs") {
-		val sourceDir1 = new File("testfiles/CompilationSuite1")
-		val sourceDir2 = new File("testfiles/CompilationSuite2")
+		val sourceDir1 = new File("script-engine/testfiles/CompilationSuite1")
+		val sourceDir2 = new File("script-engine/testfiles/CompilationSuite2")
 		val target1 = tmpOutputFolder(1)
 		val target2 = tmpOutputFolder(2)
 		val sse = ScalaScriptEngine.withoutRefreshPolicy(List(SourcePath(sourceDir1, target1), SourcePath(sourceDir2, target2)))

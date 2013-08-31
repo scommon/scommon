@@ -15,7 +15,7 @@ import java.security.AccessControlException
 @RunWith(classOf[JUnitRunner])
 class SandboxAllowOnlySuite extends FunSuite with ShouldMatchers
 {
-	val sourceDir = new File("testfiles/SandboxAllowOnlySuite")
+	val sourceDir = new File("script-engine/testfiles/SandboxAllowOnlySuite")
 	val allowedPackages = Set(
 		"java.lang",
 		"scala",

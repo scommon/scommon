@@ -9,8 +9,8 @@ import java.util.UUID
 
 import java.util.concurrent.{TimeUnit, Semaphore}
 
-import org.scommon.io._
-import org.scommon.io.Utils._
+import Utils._
+import org.apache.commons.io.FileUtils
 
 @RunWith(classOf[JUnitRunner])
 class CloseableTest extends FunSuite
@@ -18,14 +18,14 @@ class CloseableTest extends FunSuite
                      with SeveredStackTraces
                      with BeforeAndAfterAll {
 
-  val PARENT_WORKING_DIR = Path(s"closeable-test").toUserTemp
+  val PARENT_WORKING_DIR =  Path(FileUtils.getTempDirectoryPath(), "closeable-test")
 
   override protected def beforeAll() {
     PARENT_WORKING_DIR.mkdirs()
   }
 
   override protected def afterAll() {
-    PARENT_WORKING_DIR.deleteAll
+    FileUtils.deleteDirectory(PARENT_WORKING_DIR)
   }
 
   test("Close is invoked correctly") {
@@ -81,10 +81,10 @@ class CloseableTest extends FunSuite
     val file2 = Path(working, "test2.txt")
 
     try {
-      file1.touch should be (true)
+      FileUtils.touch(file1)
       file1.exists should be (true)
 
-      file2.touch should be (true)
+      FileUtils.touch(file2)
       file2.exists should be (true)
 
       using(new BufferedReader(new FileReader(file1))) { reader =>
@@ -119,7 +119,7 @@ class CloseableTest extends FunSuite
         t.printStackTrace()
         fail(t)
     } finally {
-      working.deleteAll should be (true)
+      FileUtils.deleteDirectory(working)
     }
   }
 

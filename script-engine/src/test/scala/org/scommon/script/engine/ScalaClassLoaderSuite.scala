@@ -16,7 +16,7 @@ import engine._
 @RunWith(classOf[JUnitRunner])
 class ScalaClassLoaderSuite extends FunSuite with ShouldMatchers
 {
-	val sourceDir = new File("testfiles/ScalaClassLoaderSuite")
+	val sourceDir = new File("script-engine/testfiles/ScalaClassLoaderSuite")
 	// parent classloader will contain scala-lib and all test-compiled classes
 	val classPath = Set[File]()
 

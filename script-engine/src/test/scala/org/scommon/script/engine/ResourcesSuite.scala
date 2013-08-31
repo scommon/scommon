@@ -14,7 +14,7 @@ import engine._
  */
 @RunWith(classOf[JUnitRunner])
 class ResourcesSuite extends FunSuite with ShouldMatchers {
-	val sourceDir = new File("testfiles/ResourcesSuite")
+	val sourceDir = new File("script-engine/testfiles/ResourcesSuite")
 
 	val in = getClass.getResourceAsStream("version.txt")
 	val src = scala.io.Source.fromInputStream(in)

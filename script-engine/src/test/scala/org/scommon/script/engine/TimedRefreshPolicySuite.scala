@@ -16,7 +16,7 @@ import org.scala_tools.time.Imports._
 @RunWith(classOf[JUnitRunner])
 class TimedRefreshPolicySuite extends FunSuite with ShouldMatchers {
 
-	val sourceDir = new File("testfiles/versions")
+	val sourceDir = new File("script-engine/testfiles/versions")
 
 	test("after compilation error, valid version is used") {
 		val destDir = newTmpDir("dynamicsrc")
@@ -26,7 +26,7 @@ class TimedRefreshPolicySuite extends FunSuite with ShouldMatchers {
 			copyFromSource(new File(sourceDir, "v1/reload"), destDir)
 			sse.refresh
 			sse.newInstance[TestClassTrait]("reload.Reload").result should be === "v1"
-			copyFromSource(new File("testfiles/erroneous/ve/reload"), destDir)
+			copyFromSource(new File("script-engine/testfiles/erroneous/ve/reload"), destDir)
 			Thread.sleep(3000)
 			sse.newInstance[TestClassTrait]("reload.Reload").result should be === "v1"
 			copyFromSource(new File(sourceDir, "v2/reload"), destDir)

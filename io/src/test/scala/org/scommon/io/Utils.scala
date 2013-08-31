@@ -7,6 +7,9 @@ object Utils {
     def apply(path:String):File =
       new File(path)
 
+    def apply(parent:String, path:String):File =
+      new File(parent, path)
+
     def apply(parent:File, path:String):File =
       new File(parent, path)
   }

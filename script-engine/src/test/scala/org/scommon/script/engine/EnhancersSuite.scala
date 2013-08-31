@@ -13,7 +13,7 @@ import java.io.File
 @RunWith(classOf[JUnitRunner])
 class EnhancersSuite extends FunSuite with ShouldMatchers {
 
-	val sourceDir = new File("testfiles/FromClasspathFirst")
+	val sourceDir = new File("script-engine/testfiles/FromClasspathFirst")
 
 	test("from classpath first loads the already compiled version") {
 		val sse = new ScalaScriptEngine(new Config(sourceDir)) with FromClasspathFirst

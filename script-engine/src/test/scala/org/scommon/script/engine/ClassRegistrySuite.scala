@@ -12,7 +12,7 @@ import java.io.File
 @RunWith(classOf[JUnitRunner])
 class ClassRegistrySuite extends FunSuite with ShouldMatchers
 {
-	val sourceDir = new File("testfiles/ScalaClassLoaderSuite/v1")
+	val sourceDir = new File("script-engine/testfiles/ScalaClassLoaderSuite/v1")
 
 	test("loads classes") {
 		val registry = new ClassRegistry(Set(sourceDir))

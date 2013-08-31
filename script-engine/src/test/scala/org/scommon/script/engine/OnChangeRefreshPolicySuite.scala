@@ -15,7 +15,7 @@ import org.scalatest.junit.JUnitRunner
 @RunWith(classOf[JUnitRunner])
 class OnChangeRefreshPolicySuite extends FunSuite with ShouldMatchers {
 
-	val sourceDir = new File("testfiles/versions")
+	val sourceDir = new File("script-engine/testfiles/versions")
 
 	test("onChangeRefresh: two source/output folders") {
 		val src1 = newTmpDir("dynamicsrc1")
@@ -34,8 +34,8 @@ class OnChangeRefreshPolicySuite extends FunSuite with ShouldMatchers {
 
 		sse.deleteAllClassesInOutputDirectory
 
-		copyFromSource(new File("testfiles/src1"), src1)
-		copyFromSource(new File("testfiles/src2"), src2)
+		copyFromSource(new File("script-engine/testfiles/src1"), src1)
+		copyFromSource(new File("script-engine/testfiles/src2"), src2)
 
 		sse.refresh
 
@@ -45,7 +45,7 @@ class OnChangeRefreshPolicySuite extends FunSuite with ShouldMatchers {
 		sse.versionNumber should be === 1
 
 		Thread.sleep(1000)
-		copyFromSource(new File("testfiles/src3"), src1)
+		copyFromSource(new File("script-engine/testfiles/src3"), src1)
 		sse.newInstance[TestClassTrait]("test.A").result should be === "AMod"
 		sse.versionNumber should be === 2
 		sse.newInstance[TestClassTrait]("test.B").result should be === "B"
@@ -79,7 +79,7 @@ class OnChangeRefreshPolicySuite extends FunSuite with ShouldMatchers {
 		sse.refresh
 		sse.newInstance[TestClassTrait]("reload.Reload").result should be === "v1"
 		sse.versionNumber should be === 1
-		copyFromSource(new File("testfiles/erroneous/ve"), destDir)
+		copyFromSource(new File("script-engine/testfiles/erroneous/ve"), destDir)
 		sse.newInstance[TestClassTrait]("reload.Reload").result should be === "v1"
 		Thread.sleep(2000)
 		sse.newInstance[TestClassTrait]("reload.Reload").result should be === "v1"
@@ -144,7 +144,7 @@ class OnChangeRefreshPolicySuite extends FunSuite with ShouldMatchers {
 		sse.versionNumber should be === 1
 		sse.newInstance[TestClassTrait]("reload.Reload").result should be === "v1"
 		sse.versionNumber should be === 1
-		copyFromSource(new File("testfiles/erroneous/ve"), destDir)
+		copyFromSource(new File("script-engine/testfiles/erroneous/ve"), destDir)
 		sse.newInstance[TestClassTrait]("reload.Reload").result should be === "v1"
 		Thread.sleep(2100)
 		try {

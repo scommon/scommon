@@ -6,14 +6,13 @@ import org.scalatest.matchers.ShouldMatchers
 import org.scalatest.concurrent.AsyncAssertions
 import org.junit.runner.RunWith
 
-import java.io.{PrintWriter, File}
-import java.nio.file.{Path, Paths}
+import java.nio.file.{Paths}
 import java.util.concurrent.{Semaphore, TimeUnit}
 
 import scala.collection._
 import scala.concurrent.duration._
 
-import org.apache.commons.io.FileUtils
+import Utils._
 
 /**
  * @author David Hoyt &lt;dhoyt@hoytsoft.org&gt;
@@ -25,41 +24,27 @@ class WatcherTest
   with BeforeAndAfterAll
   with AsyncAssertions
 {
-  val TEMP_DIR = Paths.get(System.getProperty("java.io.tmpdir"), "directory-watcher-test").toFile
+  val PARENT_WORKING_DIR = Path(s"watcher-test").toUserTemp
 
   override protected def beforeAll() {
-    TEMP_DIR.exists() || TEMP_DIR.mkdirs() should be (true)
+    PARENT_WORKING_DIR.exists() || PARENT_WORKING_DIR.mkdirs() should be (true)
   }
 
   override protected def afterAll() {
-    FileUtils.deleteDirectory(TEMP_DIR)
+    PARENT_WORKING_DIR.deleteAll should be(true)
   }
 
-  def createDir(root: Path = Paths.get(TEMP_DIR.toURI), path: String = ""): Path = {
+  def createDir(root: java.nio.file.Path = Paths.get(PARENT_WORKING_DIR.toURI), path: String = ""): java.nio.file.Path = {
     val p = root.resolve(path)
     val f = p.toFile
     if (f.exists())
-      FileUtils.deleteDirectory(f)
+      f.deleteAll
 
     f.mkdirs() should be (true)
     p
   }
 
-  def touch(f: File, time:Long = System.currentTimeMillis()): Boolean = {
-    if (f.isDirectory) {
-      if (!f.exists())
-        f.mkdirs()
-      f.setLastModified(time)
-    } else {
-      if (!f.exists()) {
-        f.getParentFile.mkdirs()
-        new PrintWriter(f).close()
-      }
-      f.setLastModified(time)
-    }
-  }
-
-  implicit def failOnWatcherError(implicit w:Waiter): Watcher.ErrorReceived[Path] = (_, cause) => {
+  implicit def failOnWatcherError(implicit w:Waiter): Watcher.ErrorReceived[java.nio.file.Path] = (_, cause) => {
     w {
       fail(cause)
     }
@@ -92,7 +77,7 @@ class WatcherTest
     w.await()
     wait_for_event_received.tryAcquire(10L, TimeUnit.SECONDS) should be (true)
 
-    touch(dirA.resolve("B").toFile)
+    dirA.resolve("B").toFile.touch
     w.await()
     wait_for_event_received.tryAcquire(10L, TimeUnit.SECONDS) should be (true)
 
@@ -100,7 +85,7 @@ class WatcherTest
     w.await()
     wait_for_event_received.tryAcquire(10L, TimeUnit.SECONDS) should be (true)
 
-    touch(dirA.resolve("D").toFile)
+    dirA.resolve("D").toFile.touch
     w.await()
     wait_for_event_received.tryAcquire(10L, TimeUnit.SECONDS) should be (true)
 

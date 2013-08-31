@@ -16,7 +16,7 @@ import org.scalatest.BeforeAndAfterAll
 @RunWith(classOf[JUnitRunner])
 class SandboxSuite extends FunSuite with ShouldMatchers with BeforeAndAfterAll
 {
-	val sourceDir = new File("testfiles/SandboxSuite")
+	val sourceDir = new File("script-engine/testfiles/SandboxSuite")
 	val config = ScalaScriptEngine.defaultConfig(sourceDir).copy(
 		classLoaderConfig = ClassLoaderConfig.Default.copy(
 			protectPackages = Set("javax.swing"),
@@ -24,7 +24,7 @@ class SandboxSuite extends FunSuite with ShouldMatchers with BeforeAndAfterAll
 		)
 	)
 	System.setProperty("script.classes", config.targetDirs.head.toURI.toString)
-	System.setProperty("java.security.policy", new File("testfiles/SandboxSuite/test.policy").toURI.toString)
+	System.setProperty("java.security.policy", new File("script-engine/testfiles/SandboxSuite/test.policy").toURI.toString)
 	val sseSM = new SSESecurityManager(new SecurityManager)
 	System.setSecurityManager(sseSM)
 

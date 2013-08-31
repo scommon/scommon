@@ -20,7 +20,7 @@ import java.util.concurrent.atomic.AtomicLong
 @RunWith(classOf[JUnitRunner])
 class EndToEndSuite extends FunSuite with ShouldMatchers
 {
-	val sourceDir = new File("testfiles/EndToEndSuite")
+	val sourceDir = new File("script-engine/testfiles/EndToEndSuite")
 
 	test("multi-threaded") {
 
