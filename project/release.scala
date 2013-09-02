@@ -16,7 +16,7 @@ object ReleaseSettings {
       , setReleaseVersion                      //
       , commitReleaseVersion                   // performs the initial git checks
       , tagRelease                             //
-      //, publishArtifacts                       //checks whether `publishTo` is properly set up
+      , publishArtifacts                       //checks whether `publishTo` is properly set up
       , setNextVersion                         //
       , commitNextVersion                      //
       , pushChanges                            //also checks that an upstream branch is properly configured
