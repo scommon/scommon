@@ -7,7 +7,7 @@ import ReleasePlugin._
 import ReleaseKeys._
 
 object ReleaseSettings {
-  val defaults = releaseSettings ++ Seq(
+  val defaults = Seq(
       //Customize the steps of the release process.
       releaseProcess := Seq[ReleaseStep](
         checkSnapshotDependencies              //
@@ -27,6 +27,6 @@ object ReleaseSettings {
           .map(_.bumpBugfix.asSnapshot.string)
           .getOrElse(versionFormatError)
       }
-  )
+  ) ++ releaseSettings
 }
 
