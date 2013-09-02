@@ -8,7 +8,7 @@ lazy val root = Root(
   , io
   , logging
   , platform
-  , script_engine
+//  , script_engine
 )
 
 lazy val core          = Module("core")
