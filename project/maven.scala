@@ -4,15 +4,15 @@ import scala.xml.NodeSeq
 
 object MavenSettings {
   val defaults = Seq(
-    licenses := Settings.licenses,
-    publishMavenStyle := true,
-    pomIncludeRepository := { _ => false },
+      licenses := Settings.licenses
+    , homepage := Some(url(Settings.homepage))
+    , publishMavenStyle := true
+    , pomIncludeRepository := { _ => false }
 
-    pomExtra <<= version { version => appendToPom(version) }
+    , pomExtra <<= version { version => appendToPom(version) }
   )
 
   def appendToPom(version: String): NodeSeq =
-    <url>{Settings.url}</url>
     <scm>
       <url>{Settings.vcsSpecification}</url>
       <connection>scm:git:{Settings.vcsSpecification}</connection>

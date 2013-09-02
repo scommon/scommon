@@ -7,12 +7,12 @@ object Settings {
 
   val organization       = "org.scommon"
 
-  val url                = "https://github.com/scommon/"
+  val homepage           = "https://github.com/scommon/"
 
   val vcsSpecification   = "git@github.com:scommon/scommon.git"
 
   val licenses           = Seq(
-    "The Apache Software License, Version 2.0" -> sbt.url("http://www.apache.org/licenses/LICENSE-2.0.txt")
+    "The Apache Software License, Version 2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0.txt")
   )
 
   val developers         = Seq(
