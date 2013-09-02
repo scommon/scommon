@@ -30,10 +30,10 @@ object MavenSettings {
     </parent>
 }
 
-case class License(title: String, url: String)
+case class License(name: String, url: String)
 object License {
   implicit def license2Tuple2(license: License): (String, URL) =
-    license.title -> url(license.url)
+    license.name -> url(license.url)
 
   implicit def seqLicense2SeqTuple2(licenses: Seq[License]): Seq[(String, URL)] =
     for(license <- licenses) yield license2Tuple2(license)
