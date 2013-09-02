@@ -14,7 +14,7 @@ object ThisProject {
 
     def base(path:String = ".") = file(path)
     def version                 = Keys.version in ThisBuild
-    def settings                = /* Do not publish */ Seq(publishArtifact := false) ++ PublishSettings.defaults ++ ReleaseSettings.defaults ++ BuildSettings.defaults ++ Defaults.defaultSettings
+    def settings                = /* Do not publish */ Seq(publishArtifact := false) ++ PublishSettings.defaults ++ ReleaseSettings.defaults ++ BuildSettings.defaults ++ MavenSettings.defaults ++ Defaults.defaultSettings
   }
 
   object module {
@@ -29,6 +29,6 @@ object ThisProject {
 
     def base(path:String)    = root.base(path)
     def version              = root.version
-    def settings             = PublishSettings.defaults ++ ReleaseSettings.defaults ++ BuildSettings.defaults ++ Defaults.defaultSettings
+    def settings             = PublishSettings.defaults ++ ReleaseSettings.defaults ++ BuildSettings.defaults ++ MavenSettings.defaults ++ Defaults.defaultSettings
   }
 }
