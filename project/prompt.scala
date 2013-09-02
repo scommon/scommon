@@ -20,9 +20,10 @@ object GitPrompt {
 
   val build = {
     (state: State) => {
-      val currProject = Project.extract(state).currentRef.project
+      val project_name = Project.extract(state).currentRef.project
+      val project_title = Settings.project + "-" + project_name
       "%s%s%s> ".format(
-        currProject, currBranch, currCommit
+        project_title, currBranch, currCommit
       )
     }
   }

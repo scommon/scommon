@@ -5,7 +5,7 @@ object BuildSettings {
 
   val defaults = Seq(
 
-      shellPrompt   :=  Settings.prompt
+      shellPrompt   :=  {Settings.prompt}
     , organization  :=  Settings.organization
     , scalaVersion  :=  Settings.scalaVersion
     , scalacOptions :=  Settings.scalacOptions
