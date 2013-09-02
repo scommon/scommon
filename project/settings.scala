@@ -12,7 +12,10 @@ object Settings {
   val vcsSpecification   = "git@github.com:scommon/scommon.git"
 
   val licenses           = Seq(
-    "The Apache Software License, Version 2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0.txt")
+    License(
+      title = "The Apache Software License, Version 2.0",
+      url   = "http://www.apache.org/licenses/LICENSE-2.0.txt"
+    )
   )
 
   val developers         = Seq(

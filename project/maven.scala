@@ -1,8 +1,11 @@
 import sbt._
 import Keys._
 import scala.xml.NodeSeq
+import scala.language.implicitConversions
 
 object MavenSettings {
+  import License._
+
   val defaults = Seq(
       licenses := Settings.licenses
     , homepage := Some(url(Settings.homepage))
@@ -25,6 +28,15 @@ object MavenSettings {
       <artifactId>oss-parent</artifactId>
       <version>7</version>
     </parent>
+}
+
+case class License(title: String, url: String)
+object License {
+  implicit def license2Tuple2(license: License): (String, URL) =
+    license.title -> url(license.url)
+
+  implicit def seqLicense2SeqTuple2(licenses: Seq[License]): Seq[(String, URL)] =
+    for(license <- licenses) yield license2Tuple2(license)
 }
 
 case class Developer(id: String, name: String, email: String, url: String = "", organization: String = "", organizationUri: String = "", roles: Iterable[String] = Seq()) {
