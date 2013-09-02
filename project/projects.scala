@@ -8,7 +8,9 @@ object Projects extends Build {
   lazy val root = Root(
       core
     , io
-	, script_engine
+    , logging
+    , platform
+	  , script_engine
   )
   
   lazy val core          = Module(project, "core")
@@ -16,15 +18,15 @@ object Projects extends Build {
   lazy val io            = Module(project, "io")
     .dependsOn(core % "compile")
 
+  lazy val logging       = Module(project, "logging")
+    .dependsOn(core % "compile")
+
+  lazy val platform      = Module(project, "platform")
+    .dependsOn(core % "compile")
+
   lazy val script_engine = Module(project, "script-engine")
     .dependsOn(core % "compile")
     .dependsOn(io % "compile")
-
-//  lazy val logging     = Module(project, "logging")
-//    .dependsOn(core % "compile")
-//
-//  lazy val platform    = Module(project, "platform")
-//    .dependsOn(core % "compile")
-
+    .dependsOn(logging % "compile")
 }
 
