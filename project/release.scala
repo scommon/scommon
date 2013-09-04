@@ -11,7 +11,7 @@ import Utilities._
 import com.typesafe.sbt.SbtPgp.PgpKeys._
 
 object ReleaseSettings {
-  val defaults = Seq(
+  val defaults = releaseSettings ++ Seq(
     //Customize the steps of the release process.
     releaseProcess := Seq[ReleaseStep](
         checkSnapshotDependencies              //
@@ -26,8 +26,8 @@ object ReleaseSettings {
       , setNextVersion                         //
       , commitNextVersion                      //
       , pushChanges                            //also checks that an upstream branch is properly configured
-    )
-  ) ++ releaseSettings ++ Seq(
+    ),
+
     //Customize the next version string to bump the revision number.
     nextVersion := { ver => Version(ver).map(determineNextVersion(_)).getOrElse(versionFormatError) }
   )
