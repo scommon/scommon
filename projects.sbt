@@ -8,7 +8,7 @@ lazy val root = Root(
   , io
   , logging
   , platform
-//  , script_engine
+  , script_engine
 )
 
 lazy val core          = Module("core")
@@ -22,7 +22,7 @@ lazy val logging       = Module("logging")
 lazy val platform      = Module("platform")
   .dependsOn(core % "compile")
 
-//lazy val script_engine = Module("script-engine")
-//  .dependsOn(core % "compile")
-//  .dependsOn(io % "compile")
-//  .dependsOn(logging % "compile")
+lazy val script_engine = Module("script-engine")
+  .dependsOn(core % "compile")
+  .dependsOn(io % "compile")
+  .dependsOn(logging % "compile")
