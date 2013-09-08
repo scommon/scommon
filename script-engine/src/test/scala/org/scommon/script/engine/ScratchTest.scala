@@ -1,5 +1,6 @@
 package org.scommon.script.engine
 
+import _root_.scala.Some
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, SeveredStackTraces, FunSuite}
 import org.junit.runner.RunWith
@@ -8,20 +9,23 @@ import java.util.UUID
 
 import org.scommon.io._
 import Utils._
-import scala.tools.nsc.{SubComponent, Phase, Settings, Global}
-import scala.tools.nsc.reporters.{Reporter, ConsoleReporter}
-import scala.tools.nsc.io.VirtualDirectory
-import scala.tools.nsc.io.AbstractFile
+import _root_.scala.tools.nsc.{SubComponent, Phase, Settings, Global}
+import _root_.scala.tools.nsc.reporters.{Reporter, ConsoleReporter}
+import _root_.scala.tools.nsc.io.VirtualDirectory
+import _root_.scala.tools.nsc.io.AbstractFile
 import java.net.{URLClassLoader, URI}
 import java.io._
-import scala.reflect.io.{Streamable, NoAbstractFile}
-import scala.collection._
-import scala.tools.util.PathResolver
+import _root_.scala.reflect.io.{Streamable, NoAbstractFile}
+import _root_.scala.collection._
+import _root_.scala.tools.util.PathResolver
 import java.nio.file.LinkOption
 import java.nio.charset.{Charset, CharsetDecoder}
 import java.nio.ByteBuffer
-import scala.tools.nsc.plugins.{Plugin, PluginComponent}
-import scala.tools.nsc
+import _root_.scala.tools.nsc.plugins.{Plugin, PluginComponent}
+import _root_.scala.tools.nsc
+
+import org.scommon.core._
+import org.scommon.script.engine.core._
 
 
 @RunWith(classOf[JUnitRunner])
@@ -48,6 +52,23 @@ class ScratchTest extends FunSuite
       val workingDirectory: String = "."
       val customClassPath: Iterable[String] = Seq("a.jar", "b.jar", "c.jar")
       val working_directory: java.nio.file.Path = java.nio.file.Paths.get(workingDirectory).toRealPath(LinkOption.NOFOLLOW_LINKS).toAbsolutePath
+
+
+      val generator = (CompilerSourceGenerator.fromStrings(
+        """
+          |package whatever
+          |trait Bar
+          |object A {
+          |  object Baz {
+          |    class Foo extends Bar with org.scommon.script.engine.MyTestTrait
+          |  }
+          |}
+          |""".stripMargin
+      ) ->> { sources =>
+        sources.foreach(x => println(s"Compiling ${x.source}"))
+      } ->> { sources =>
+
+      }).compose
 
       def error(message:String): Unit = println(s"$message")
 
@@ -81,25 +102,16 @@ class ScratchTest extends FunSuite
         settings.classpath.prepend(element)
 
       val reporter:Reporter = new ConsoleReporter(settings)
-      val compiler = new Global(settings, reporter) {
-        override protected def computeInternalPhases () {
-          super.computeInternalPhases
-          val phase = new Foo(this)
-          addToPhasesSet(phase, phase.phaseName)
-        }
-      }
 
-      val r = new compiler.Run {
-        override def progress(current: Int, total: Int) {
-          super.progress(current, total)
-          println(s"curr: $current, total: $total")
-        }
-      }
+      val inter = new Foo2()
+      val compiler = new ScalaCompiler(settings, reporter, Seq(inter), Some(new CompilerProgressListener {
+        def progressUpdate(update: CompilerProgress):Unit = println(update)
+      }))
 
       val is = new ByteArrayInputStream("package whatever; trait Bar; object A { object Baz { class Foo extends Bar with org.scommon.script.engine.MyTestTrait } } \n".getBytes("UTF-8"))
       val sf = new ScalaSourceStream(is)
 
-      r.compileFiles(List(sf))
+      compiler.compile(sf)
 
 
       //val vd: VirtualDirectory = new VirtualDirectory("d")
@@ -111,7 +123,7 @@ class ScratchTest extends FunSuite
   }
 }
 
-import scala.tools.nsc
+import _root_.scala.tools.nsc
 import nsc.Global
 import nsc.Phase
 import nsc.plugins.Plugin
@@ -119,112 +131,60 @@ import nsc.plugins.PluginComponent
 
 trait MyTestTrait
 
-class Foo(val global: Global) extends SubComponent {
-  import global._
+class Foo2 extends ScalaPhaseIntercept {
+  val name = "foo2"
+  override val runsBeforePhases    = List(CompilerPhase.Erasure)
+  override val runsAfterPhases     = List(CompilerPhase.Typer)
+  override val runsRightAfterPhase = Some(CompilerPhase.Pickler)
 
-  val phaseName = "foo"
-  val name = phaseName
-  val runsAfter = List("typer")
-  val runsRightAfter = Some("pickler")
-  override val runsBefore = List("erasure")
+  /** Called when a class or module is found. */
+  private[this] def callback(global: Global)(t: global.Type) = {
+    import global._
 
-  /** Called when a class is found. */
-  private[this] def `class`(s: ClassSymbol) = {
-    process(s.typeOfThis)
-  }
-
-  /** Called when a module is found. */
-  private[this] def `module`(s: ModuleSymbol) = {
-    process(s.typeOfThis)
-  }
-
-  private[this] def process(t: Type) = {
     println(s"*********************** FOUND: ${t.toLongString} ${t.baseClasses} ${t <:< typeOf[MyTestTrait]}")
   }
 
-  def newPhase(prev: Phase) = new Phase(prev) {
-    def name = phaseName
-    def run(): Unit = {
-      //Only look for units that are compiling Scala.
-      for {
-        unit <- currentRun.units
-        if !unit.isJava
-      } processScalaUnit(unit)
-    }
+  def intercept(global: Global)(unit: global.CompilationUnit): Unit = {
+    import global._
 
-    private[this] def processScalaUnit(unit: CompilationUnit) = {
-      val source = unit.source.file.name
-      println(s"traversing $source")
+    val source = unit.source.file.name
+    println(s"traversing $source")
 
-      val traverse = new Traverser {
-        import scala.reflect.internal._
+    val traverse = new global.Traverser {
+      import _root_.scala.reflect.internal._
 
-        def isTopLevel(sym: Symbol): Boolean =
-          (sym ne null) &&
-          (sym != NoSymbol) &&
-          !sym.isImplClass &&
-          !sym.isNestedClass &&
-          sym.isStatic &&
-          !sym.hasFlag(Flags.SYNTHETIC) &&
-          !sym.hasFlag(Flags.JAVA)
+      def isTopLevel(sym: Symbol): Boolean =
+        (sym ne null) &&
+        (sym != NoSymbol) &&
+        !sym.isImplClass &&
+        !sym.isNestedClass &&
+        sym.isStatic &&
+        !sym.hasFlag(Flags.SYNTHETIC) &&
+        !sym.hasFlag(Flags.JAVA)
 
-        def isDefined(sym: Symbol): Boolean =
-          (sym ne null) &&
-          (sym != NoSymbol)
+      def isDefined(sym: Symbol): Boolean =
+        (sym ne null) &&
+        (sym != NoSymbol)
 
-        def isClass(sym: Symbol): Boolean =
-          sym.isClass
+      def isClass(sym: Symbol): Boolean =
+        sym.isClass
 
-        def isModule(sym: Symbol): Boolean =
-          sym.isModule
+      def isModule(sym: Symbol): Boolean =
+        sym.isModule
 
-        override def traverse(tree: Tree) = {
-          tree match {
-            case _: ClassDef | _ : ModuleDef
-              if isDefined(tree.symbol) =>
-              if (isClass(tree.symbol))
-                `class`(tree.symbol.asClass)
-              else if (isModule(tree.symbol))
-                `module`(tree.symbol.asModule)
-            case _ =>
-          }
-          super.traverse(tree)
+      override def traverse(tree: Tree) = {
+        tree match {
+          case _: ClassDef | _: ModuleDef
+            if isDefined(tree.symbol) && (isClass(tree.symbol) || isModule(tree.symbol)) =>
+            callback(global)(tree.symbol.typeOfThis)
+          case _ =>
         }
+        super.traverse(tree)
       }
-      traverse.apply(unit.body)
     }
+    traverse.apply(unit.body)
   }
 }
-//
-//  class DivByZero(val global: Global) extends Plugin {
-//    import global._
-//
-//    val name = "divbyzero"
-//    val description = "checks for division by zero"
-//    val components = List[PluginComponent](Component)
-//
-//    private object Component extends PluginComponent {
-//      val global: DivByZero.this.global.type = DivByZero.this.global
-//
-//      val runsAfter = "refchecks"
-//
-//      // Using the Scala Compiler 2.8.x the runsAfter should be written as below
-//      // val runsAfter = List[String]("refchecks");
-//      val phaseName = DivByZero.this.name
-//      def newPhase(_prev: Phase) = new DivByZeroPhase(_prev)
-//
-//      class DivByZeroPhase(prev: Phase) extends StdPhase(prev) {
-//        override def name = DivByZero.this.name
-//        def apply(unit: CompilationUnit) {
-//          for ( tree @ Apply(Select(rcvr, nme.DIV), List(Literal(Constant(0)))) <- unit.body;
-//                if rcvr.tpe <:< definitions.IntClass.tpe)
-//          {
-//            unit.error(tree.pos, "definitely division by zero")
-//          }
-//        }
-//      }
-//    }
-//  }
 
 class ScalaSourceStream(uri: URI, stream: InputStream, charset: Charset = org.scommon.io.DEFAULT_CHARSET) extends AbstractFile {
   def this(file: File) = this(file.toURI, file.openForRead)
