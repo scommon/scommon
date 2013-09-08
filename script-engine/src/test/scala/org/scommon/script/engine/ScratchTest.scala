@@ -53,23 +53,6 @@ class ScratchTest extends FunSuite
       val customClassPath: Iterable[String] = Seq("a.jar", "b.jar", "c.jar")
       val working_directory: java.nio.file.Path = java.nio.file.Paths.get(workingDirectory).toRealPath(LinkOption.NOFOLLOW_LINKS).toAbsolutePath
 
-
-      val generator = (CompilerSourceGenerator.fromStrings(
-        """
-          |package whatever
-          |trait Bar
-          |object A {
-          |  object Baz {
-          |    class Foo extends Bar with org.scommon.script.engine.MyTestTrait
-          |  }
-          |}
-          |""".stripMargin
-      ) ->> { sources =>
-        sources.foreach(x => println(s"Compiling ${x.source}"))
-      } ->> { sources =>
-
-      }).compose
-
       def error(message:String): Unit = println(s"$message")
 
       val output = new VirtualDirectory("mem/output", None)
@@ -108,10 +91,26 @@ class ScratchTest extends FunSuite
         def progressUpdate(update: CompilerProgress):Unit = println(update)
       }))
 
-      val is = new ByteArrayInputStream("package whatever; trait Bar; object A { object Baz { class Foo extends Bar with org.scommon.script.engine.MyTestTrait } } \n".getBytes("UTF-8"))
-      val sf = new ScalaSourceStream(is)
+      val generator = (CompilerSourceGenerator.fromStrings(
+        """
+          |package whatever
+          |trait Bar
+          |object A {
+          |  object Baz {
+          |    class Foo extends Bar with org.scommon.script.engine.MyTestTrait
+          |  }
+          |}
+          |""".stripMargin
+      ) ->> { sources =>
+        sources.foreach(x => println(s"Compiling ${x.source}"))
+      } ->> { sources =>
+        compiler.compile(sources)
+      }).compose
 
-      compiler.compile(sf)
+//      val is = new ByteArrayInputStream("package whatever; trait Bar; object A { object Baz { class Foo extends Bar with org.scommon.script.engine.MyTestTrait } } \n".getBytes("UTF-8"))
+//      val sf = new ScalaSourceStream(is)
+//
+//      compiler.compile(sf)
 
 
       //val vd: VirtualDirectory = new VirtualDirectory("d")
