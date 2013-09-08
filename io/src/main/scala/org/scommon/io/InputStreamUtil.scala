@@ -6,9 +6,9 @@ import java.nio.charset.{CharsetDecoder, Charset}
 import org.scommon.core.{Closeable}
 
 object InputStreamUtil {
-  @inline def toIterator(input:InputStream, size:Int = 1024):Iterator[(Int, Array[Byte])] with Closeable = new CloseableInputStreamIterator {
+  @inline def toIterator(input:InputStream, inputBufferSize:Int = 1024):Iterator[(Int, Array[Byte])] with Closeable = new CloseableInputStreamIterator {
     protected val source = input
-    protected val bufferSize = size
+    protected val bufferSize = inputBufferSize
   }
 
   @inline def toCloseable(input:InputStream):InputStream with Closeable = new CloseableInputStream {
