@@ -6,6 +6,7 @@ lazy val aaa_default_project = root
 lazy val root = Root(
     core
   , io
+  , reactive
   , logging
   , platform
   , script_engine
@@ -14,6 +15,9 @@ lazy val root = Root(
 lazy val core          = Module("core")
 
 lazy val io            = Module("io")
+  .dependsOn(core % "compile")
+
+lazy val reactive      = Module("reactive")
   .dependsOn(core % "compile")
 
 lazy val logging       = Module("logging")
