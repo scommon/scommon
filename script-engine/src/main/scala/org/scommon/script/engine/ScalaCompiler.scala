@@ -15,6 +15,10 @@ trait ScalaPhaseIntercept extends CompilerPhaseIntercept {
 }
 
 object ScalaCompiler {
+  val name = "scala-compiler"
+  val title = "Scala Compiler"
+  val version = Version(_root_.scala.util.Properties.versionNumberString)
+
   implicit def toSubComponent(intercept: ScalaPhaseIntercept, providedGlobal: nsc.Global): nsc.SubComponent = new nsc.SubComponent { self =>
     import providedGlobal._
 
@@ -83,9 +87,9 @@ extends core.Compiler
 {
   import ScalaCompiler._
 
-  val name = "scala-compiler"
-  val title = "Scala Compiler"
-  val version = Version(_root_.scala.util.Properties.versionNumberString)
+  val name = ScalaCompiler.name
+  val title = ScalaCompiler.title
+  val version = ScalaCompiler.version
 
   private[this] val compiler =
     new nsc.Global(settings, reporter) {
@@ -125,10 +129,11 @@ extends core.Compiler
   }
 
   def compile(sources: Iterable[CompilerSource[Any]]) = {
-    val form_that_compiler_understands = for {
-      source <- sources
-      abstract_file = toAbstractFile(source)
-    } yield abstract_file
+    val form_that_compiler_understands =
+      for {
+        source <- sources
+        abstract_file = toAbstractFile(source)
+      } yield abstract_file
     r.compileFiles(form_that_compiler_understands.toList)
   }
 

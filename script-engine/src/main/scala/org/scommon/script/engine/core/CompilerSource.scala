@@ -35,6 +35,8 @@ object CompilerSource {
         val idx = p.lastIndexOf('/')
         if (idx >= 0) p.substring(idx + 1) else ""
       }
+
+      override def toString = source.toString
     }
   }
 }

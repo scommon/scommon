@@ -27,6 +27,8 @@ import _root_.scala.tools.nsc
 import org.scommon.core._
 import org.scommon.script.engine.core._
 
+import org.scommon.reactive._
+
 
 @RunWith(classOf[JUnitRunner])
 class ScratchTest extends FunSuite
@@ -53,9 +55,22 @@ class ScratchTest extends FunSuite
       val customClassPath: Iterable[String] = Seq("a.jar", "b.jar", "c.jar")
       val working_directory: java.nio.file.Path = java.nio.file.Paths.get(workingDirectory).toRealPath(LinkOption.NOFOLLOW_LINKS).toAbsolutePath
 
+      //TODO: Add error/warning listener.
+      val default = Engine.newEngine(
+        """
+          |package whatever
+          |trait Bar
+          |object A {
+          |  object Baz {
+          |    class Foo extends Bar with org.scommon.script.engine.MyTestTrait
+          |  }
+          |}
+        """.stripMargin
+      )
+
       def error(message:String): Unit = println(s"$message")
 
-      val output = new VirtualDirectory("mem/output", None)
+      val output = new VirtualDirectory("mem:///stream", None)
       val settings:Settings = new Settings(error)
       settings.outdir.value = working.getAbsolutePath
 
@@ -91,7 +106,40 @@ class ScratchTest extends FunSuite
         def progressUpdate(update: CompilerProgress):Unit = println(update)
       }))
 
-      val generator = (CompilerSourceGenerator.fromStrings(
+      import Generator._
+
+      val wait_for_all_generators = waitForAll
+
+      //Extracts the CompilerSource instances from the junction data (which is what's processing the generator's
+      //generated values). The reactive library gathers
+      def lift_source: PartialFunction[Any, Any] = {
+        case Seq(Some(t @ Seq(_*)), _*) => t
+      }
+
+      def process_source: PartialFunction[Any, Any] = { case (sources: Seq[CompilerSource[URI]] @unchecked) =>
+        sources.foreach(x => println(s"Compiling ${x.source}"))
+        compiler.compile(sources)
+
+        println("Compilation complete")
+
+        val s = mutable.Stack[AbstractFile]()
+        s.push(output)
+
+        while(s.nonEmpty) {
+          val next = s.pop()
+
+          for (candidate <- next.iterator) {
+            if (candidate.isDirectory) {
+              s.push(candidate)
+            } else {
+              val array = candidate.toByteArray
+              println(s"compiled: ${candidate.canonicalPath}\nbytes: ${array.length}")
+            }
+          }
+        }
+      }
+
+      val generator = ((CompilerSourceGenerator.fromStrings(
         """
           |package whatever
           |trait Bar
@@ -100,12 +148,12 @@ class ScratchTest extends FunSuite
           |    class Foo extends Bar with org.scommon.script.engine.MyTestTrait
           |  }
           |}
-          |""".stripMargin
-      ) ->> { sources =>
-        sources.foreach(x => println(s"Compiling ${x.source}"))
-      } ->> { sources =>
-        compiler.compile(sources)
-      }).compose
+        """.stripMargin
+        )
+        |>> wait_for_all_generators)
+        >> lift_source
+        >> process_source
+      ).begin
 
 //      val is = new ByteArrayInputStream("package whatever; trait Bar; object A { object Baz { class Foo extends Bar with org.scommon.script.engine.MyTestTrait } } \n".getBytes("UTF-8"))
 //      val sf = new ScalaSourceStream(is)
