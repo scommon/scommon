@@ -16,10 +16,9 @@ object Generator {
 
   implicit def traversable2Generator[T](iter: Traversable[T]): Generator[T] = new Generator[T] {
     override val initial = iter.toIterable
-
-    private[reactive] def embrace_left_associative[U](generator: Generator[U]): Embrace =
-      EmbraceImpl(Seq(this, generator))
   }
+
+  implicit def generators2Embrace(g: Seq[Generator[Any]]): Embrace = EmbraceImpl(g)
 
   implicit def generator2Embrace(g: Generator[Any]): Embrace = EmbraceImpl(Seq(g))
 
@@ -64,7 +63,8 @@ trait Generator[+TGenerate] {
   def embrace[T](g: Generator[T]): Embrace = embrace_left_associative[T](g)
 
 
-  private[reactive] def embrace_left_associative[T](generator: Generator[T]): Embrace
+  private[reactive] def embrace_left_associative[T](generator: Generator[T]): Embrace =
+    generators2Embrace(Seq(this, generator))
 
   private[reactive] def embrace_right_associative[T](generator: Generator[T]): Embrace =
     embrace_left_associative[T](generator)
@@ -74,7 +74,7 @@ trait Generator[+TGenerate] {
   def initial: Iterable[TGenerate] =
     Iterable.empty
 
-  def push[T >: TGenerate](instance: T): Unit =
+  final def push[T >: TGenerate](instance: T): Unit =
     push(Iterable(instance))
 
   final def push[T >: TGenerate](instances: Iterable[T]): Unit = {
@@ -115,34 +115,34 @@ trait Embrace extends Generator[Any] { self: Receiver =>
   private[reactive] val generators: Seq[Generator[Any]] = Seq()
   private[reactive] val barriers: Seq[BarrierMagnet] = Seq()
 
-  def -(barrier: BarrierMagnet): Embrace                        = remove_left_associative(barrier)
-  def -[T](generator: Generator[T]): Embrace                    = remove_left_associative(generator)
+  final def -(barrier: BarrierMagnet): Embrace                        = remove_left_associative(barrier)
+  final def -[T](generator: Generator[T]): Embrace                    = remove_left_associative(generator)
 
-  override def ~[T](g: Generator[T]): Embrace                   = embrace_left_associative[T](g)
-  override def ~:[T](g: Generator[T]): Embrace                  = embrace_right_associative[T](g)
-  override def embrace[T](g: Generator[T]): Embrace             = embrace_left_associative[T](g)
+  final override def ~[T](g: Generator[T]): Embrace                   = embrace_left_associative[T](g)
+  final override def ~:[T](g: Generator[T]): Embrace                  = embrace_right_associative[T](g)
+  final override def embrace[T](g: Generator[T]): Embrace             = embrace_left_associative[T](g)
 
-  def |>>(fn: BarrierProcessor): Barrier                        = barrier_left_associative(processor2BarrierMagnet(fn))
-  def <<|:(fn: BarrierProcessor): Barrier                       = barrier_right_associative(processor2BarrierMagnet(fn))
-  def barrier(fn: BarrierProcessor): Barrier                    = barrier_left_associative(processor2BarrierMagnet(fn))
+  final def |>>(fn: BarrierProcessor): Barrier                        = barrier_left_associative(processor2BarrierMagnet(fn))
+  final def <<|:(fn: BarrierProcessor): Barrier                       = barrier_right_associative(processor2BarrierMagnet(fn))
+  final def barrier(fn: BarrierProcessor): Barrier                    = barrier_left_associative(processor2BarrierMagnet(fn))
 
-  def |>>(implicit magnet: BarrierMagnet): Barrier              = barrier_left_associative(magnet)
-  def <<|:(implicit magnet: BarrierMagnet): Barrier             = barrier_right_associative(magnet)
-  def barrier(implicit magnet: BarrierMagnet): Barrier          = barrier_left_associative(magnet)
+  final def |>>(implicit magnet: BarrierMagnet): Barrier              = barrier_left_associative(magnet)
+  final def <<|:(implicit magnet: BarrierMagnet): Barrier             = barrier_right_associative(magnet)
+  final def barrier(implicit magnet: BarrierMagnet): Barrier          = barrier_left_associative(magnet)
 
-  def >>[T](fn: JunctionProcessor[T]): Junction                 = junction_left_associative[T](processor2JunctionMagnet(fn))
-  def <<:[T](fn: JunctionProcessor[T]): Junction                = junction_right_associative[T](processor2JunctionMagnet(fn))
-  def junction[T](fn: JunctionProcessor[T]): Junction           = junction_left_associative[T](processor2JunctionMagnet(fn))
+  final def >>[T](fn: JunctionProcessor[T]): Junction                 = junction_left_associative[T](processor2JunctionMagnet(fn))
+  final def <<:[T](fn: JunctionProcessor[T]): Junction                = junction_right_associative[T](processor2JunctionMagnet(fn))
+  final def junction[T](fn: JunctionProcessor[T]): Junction           = junction_left_associative[T](processor2JunctionMagnet(fn))
 
-  def >>[T](implicit magnet: JunctionMagnet[T]): Junction       = junction_left_associative[T](magnet)
-  def <<:[T](implicit magnet: JunctionMagnet[T]): Junction      = junction_right_associative[T](magnet)
-  def junction[T](implicit magnet: JunctionMagnet[T]): Junction = junction_left_associative[T](magnet)
+  final def >>[T](implicit magnet: JunctionMagnet[T]): Junction       = junction_left_associative[T](magnet)
+  final def <<:[T](implicit magnet: JunctionMagnet[T]): Junction      = junction_right_associative[T](magnet)
+  final def junction[T](implicit magnet: JunctionMagnet[T]): Junction = junction_left_associative[T](magnet)
 
   private[reactive] def remove_left_associative(barrier: BarrierMagnet): Embrace
   private[reactive] def remove_left_associative[T](generator: Generator[T]): Embrace
 
-  private[reactive] def embrace_left_associative[TNext](generator: Generator[TNext]): Embrace
-  private[reactive] def embrace_right_associative[TNext](generator: Generator[TNext]): Embrace
+  private[reactive] def embrace_left_associative[T](generator: Generator[T]): Embrace
+  private[reactive] def embrace_right_associative[T](generator: Generator[T]): Embrace
 
   private[reactive] def barrier_left_associative(implicit magnet: BarrierMagnet): Barrier
   private[reactive] def barrier_right_associative(implicit magnet: BarrierMagnet): Barrier
@@ -151,17 +151,17 @@ trait Embrace extends Generator[Any] { self: Receiver =>
   private[reactive] def junction_right_associative[T](fn: JunctionMagnet[T]): Junction
 
   /** Monoidal in nature. */
-  override def initial: Iterable[Any] =
+  final override def initial: Iterable[Any] =
     for(g <- generators)
       yield Some(g.initial)
 
-  private[reactive] override def register(receiver: Receiver): Unit = {
+  final private[reactive] override def register(receiver: Receiver): Unit = {
     super.register(receiver)
     for(g <- generators)
       g.register(this)
   }
 
-  private[reactive] override def start(): Unit = {
+  final private[reactive] override def start(): Unit = {
     require(!started, s"Cannot call start more than once on an instance of ${classOf[Embrace].getName}")
 
     for(g <- generators)
@@ -184,11 +184,11 @@ private[reactive] sealed case class EmbraceImpl(
   private[reactive] def remove_left_associative(barrier: BarrierMagnet): Embrace =
     EmbraceImpl(generators, barriers diff Seq(barrier))
 
-  private[reactive] def remove_left_associative[TGenerator](g: Generator[TGenerator]): Embrace =
+  private[reactive] def remove_left_associative[T](g: Generator[T]): Embrace =
     EmbraceImpl(generators diff Seq(g), barriers)
 
 
-  private[reactive] def embrace_left_associative[TNext](generator: Generator[TNext]): Embrace =
+  private[reactive] override def embrace_left_associative[T](generator: Generator[T]): Embrace =
     EmbraceImpl(generators :+ generator, barriers)
 
 
@@ -237,27 +237,27 @@ trait Barrier {
   private[reactive] val associated_embrace: Embrace
   private[reactive] val barriers: Seq[BarrierMagnet]
 
-  def -(barrier: BarrierMagnet): Barrier                        = remove_left_associative(barrier)
+  final def -(barrier: BarrierMagnet): Barrier                        = remove_left_associative(barrier)
 
-  def ~:[T](g: Generator[T]): Embrace                           = embrace_right_associative[T](g)
-  def ~[T](g: Generator[T]): Embrace                            = embrace_left_associative[T](g)
-  def embrace[T](g: Generator[T]): Embrace                      = embrace_left_associative[T](g)
+  final def ~:[T](g: Generator[T]): Embrace                           = embrace_right_associative[T](g)
+  final def ~[T](g: Generator[T]): Embrace                            = embrace_left_associative[T](g)
+  final def embrace[T](g: Generator[T]): Embrace                      = embrace_left_associative[T](g)
 
-  def <<|:(fn: BarrierProcessor): Barrier                       = barrier_right_associative(processor2BarrierMagnet(fn))
-  def |>>(fn: BarrierProcessor): Barrier                        = barrier_left_associative(processor2BarrierMagnet(fn))
-  def barrier(fn: BarrierProcessor): Barrier                    = barrier_left_associative(processor2BarrierMagnet(fn))
+  final def <<|:(fn: BarrierProcessor): Barrier                       = barrier_right_associative(processor2BarrierMagnet(fn))
+  final def |>>(fn: BarrierProcessor): Barrier                        = barrier_left_associative(processor2BarrierMagnet(fn))
+  final def barrier(fn: BarrierProcessor): Barrier                    = barrier_left_associative(processor2BarrierMagnet(fn))
 
-  def <<|:(implicit magnet: BarrierMagnet): Barrier             = barrier_right_associative(magnet)
-  def |>>(implicit magnet: BarrierMagnet): Barrier              = barrier_left_associative(magnet)
-  def barrier(implicit magnet: BarrierMagnet): Barrier          = barrier_left_associative(magnet)
+  final def <<|:(implicit magnet: BarrierMagnet): Barrier             = barrier_right_associative(magnet)
+  final def |>>(implicit magnet: BarrierMagnet): Barrier              = barrier_left_associative(magnet)
+  final def barrier(implicit magnet: BarrierMagnet): Barrier          = barrier_left_associative(magnet)
 
-  def <<:[T](fn: JunctionProcessor[T]): Junction                = junction_right_associative[T](processor2JunctionMagnet(fn))
-  def >>[T](fn: JunctionProcessor[T]): Junction                 = junction_left_associative[T](processor2JunctionMagnet(fn))
-  def junction[T](fn: JunctionProcessor[T]): Junction           = junction_left_associative[T](processor2JunctionMagnet(fn))
+  final def <<:[T](fn: JunctionProcessor[T]): Junction                = junction_right_associative[T](processor2JunctionMagnet(fn))
+  final def >>[T](fn: JunctionProcessor[T]): Junction                 = junction_left_associative[T](processor2JunctionMagnet(fn))
+  final def junction[T](fn: JunctionProcessor[T]): Junction           = junction_left_associative[T](processor2JunctionMagnet(fn))
 
-  //def <<:[T](implicit magnet: JunctionMagnet[T]): Junction      = junction_right_associative[T](magnet)
-  //def >>[T](implicit magnet: JunctionMagnet[T]): Junction       = junction_left_associative[T](magnet)
-  //def junction[T](implicit magnet: JunctionMagnet[T]): Junction = junction_left_associative[T](magnet)
+  //final def <<:[T](implicit magnet: JunctionMagnet[T]): Junction      = junction_right_associative[T](magnet)
+  //final def >>[T](implicit magnet: JunctionMagnet[T]): Junction       = junction_left_associative[T](magnet)
+  //final def junction[T](implicit magnet: JunctionMagnet[T]): Junction = junction_left_associative[T](magnet)
 
   private[reactive] def remove_left_associative(barrier: BarrierMagnet): Barrier
 
@@ -314,20 +314,20 @@ trait Junction {
   private[reactive] val associated_barriers: Seq[BarrierMagnet]
   private[reactive] val junctions: Seq[JunctionMagnet[Any]]
 
-  def -[TGenerator](generator: Generator[TGenerator]): Junction           = remove_left_associative(generator)
-  def -[TJunction](junction: JunctionMagnet[TJunction]): Junction         = remove_left_associative(junction)
-  def -(barrier: BarrierMagnet): Junction                                 = remove_left_associative(barrier)
-  def remove[TGenerator](generator: Generator[TGenerator]): Junction      = remove_left_associative(generator)
-  def remove[TJunction](junction: JunctionMagnet[TJunction]): Junction    = remove_left_associative(junction)
-  def remove(barrier: BarrierMagnet): Junction                            = remove_left_associative(barrier)
+  final def -[TGenerator](generator: Generator[TGenerator]): Junction           = remove_left_associative(generator)
+  final def -[TJunction](junction: JunctionMagnet[TJunction]): Junction         = remove_left_associative(junction)
+  final def -(barrier: BarrierMagnet): Junction                                 = remove_left_associative(barrier)
+  final def remove[TGenerator](generator: Generator[TGenerator]): Junction      = remove_left_associative(generator)
+  final def remove[TJunction](junction: JunctionMagnet[TJunction]): Junction    = remove_left_associative(junction)
+  final def remove(barrier: BarrierMagnet): Junction                            = remove_left_associative(barrier)
 
-  def >>[T](fn: JunctionProcessor[T]): Junction                           = junction_left_associative[T](processor2JunctionMagnet[T](fn))
-  def <<:[T](fn: JunctionProcessor[T]): Junction                          = junction_right_associative[T](processor2JunctionMagnet[T](fn))
-  def junction[T](fn: JunctionProcessor[T]): Junction                     = junction_left_associative[T](processor2JunctionMagnet[T](fn))
+  final def >>[T](fn: JunctionProcessor[T]): Junction                           = junction_left_associative[T](processor2JunctionMagnet[T](fn))
+  final def <<:[T](fn: JunctionProcessor[T]): Junction                          = junction_right_associative[T](processor2JunctionMagnet[T](fn))
+  final def junction[T](fn: JunctionProcessor[T]): Junction                     = junction_left_associative[T](processor2JunctionMagnet[T](fn))
 
-  def >>[T](implicit magnet: JunctionMagnet[T]): Junction                 = junction_left_associative[T](magnet)
-  def <<:[T](implicit magnet: JunctionMagnet[T]): Junction                = junction_right_associative[T](magnet)
-  def junction[T](implicit magnet: JunctionMagnet[T]): Junction           = junction_left_associative[T](magnet)
+  final def >>[T](implicit magnet: JunctionMagnet[T]): Junction                 = junction_left_associative[T](magnet)
+  final def <<:[T](implicit magnet: JunctionMagnet[T]): Junction                = junction_right_associative[T](magnet)
+  final def junction[T](implicit magnet: JunctionMagnet[T]): Junction           = junction_left_associative[T](magnet)
 
   private[reactive] def remove_left_associative(barrier: BarrierMagnet): Junction
   private[reactive] def remove_left_associative[T](junction: JunctionMagnet[T]): Junction
