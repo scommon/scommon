@@ -30,6 +30,14 @@ object Generator {
     def apply(data: Any): T = fn(data)
   }
 
+  implicit def processor2JunctionMagnet[T](fn: PartialFunction[Any, T]): JunctionMagnet[T] = new JunctionMagnet[T] {
+    def apply(data: Any): T = {
+      if (!fn.isDefinedAt(data))
+        throw new IllegalStateException(s"Partial function is not defined for $data")
+      fn(data)
+    }
+  }
+
   implicit val waitForAll: BarrierMagnet = new BarrierMagnet {
     def apply(x: Received) = {
       var found = false
@@ -133,6 +141,10 @@ trait Embrace extends Generator[Any] { self: Receiver =>
   final def >>[T](fn: JunctionProcessor[T]): Junction                 = junction_left_associative[T](processor2JunctionMagnet(fn))
   final def <<:[T](fn: JunctionProcessor[T]): Junction                = junction_right_associative[T](processor2JunctionMagnet(fn))
   final def junction[T](fn: JunctionProcessor[T]): Junction           = junction_left_associative[T](processor2JunctionMagnet(fn))
+
+  final def >>[T](fn: PartialFunction[Any, T]): Junction                 = junction_left_associative[T](processor2JunctionMagnet(fn))
+  final def <<:[T](fn: PartialFunction[Any, T]): Junction                = junction_right_associative[T](processor2JunctionMagnet(fn))
+  final def junction[T](fn: PartialFunction[Any, T]): Junction           = junction_left_associative[T](processor2JunctionMagnet(fn))
 
   final def >>[T](implicit magnet: JunctionMagnet[T]): Junction       = junction_left_associative[T](magnet)
   final def <<:[T](implicit magnet: JunctionMagnet[T]): Junction      = junction_right_associative[T](magnet)
@@ -373,7 +385,26 @@ private[reactive] sealed case class JunctionImpl(
     val all_barriers_passed = !associated_barriers.exists(!_(received))
     if (all_barriers_passed) {
       val data = received.data.get
-      junctions.foreach(_(data))
+      //Lift the data out of Received. Takes something that looks like:
+      //  <Sequence of Options of Receiveds>
+      //  Seq(Some(Received(<data> Some(Seq("x", "y", "z")), <children> Seq())), Some(Received(<data> Some(Seq(1, 2, 3)), <children> Seq())))
+      //and produces:
+      //  Seq(Some(Seq("x", "y", "z")), Some(Seq(1, 2, 3)))
+      val lifted =
+        data match {
+          case Seq(x @ _*) =>
+            for(y <- x) yield y match {
+              case Some(Received(r, _)) => r
+              case _ => None
+            }
+
+          case _ =>
+            data
+        }
+
+      var last = lifted
+      for (j <- junctions)
+        last = j(last)
     }
   }
 

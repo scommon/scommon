@@ -71,7 +71,7 @@ class GeneratorTest extends FunSuite
         if (received)
           fail("Should only be called once when no extra data has been pushed.")
         received = true
-        x should be(Seq(Some(Received(Some(Seq("x", "y", "z")),Seq())), Some(Received(Some(Seq(1, 2, 3)),Seq())))) //Due to right associativity
+        x should be(Seq(Some(Seq("x", "y", "z")), Some(Seq(1, 2, 3)))) //Due to right associativity
       } <<: waitForAll <<|: (Seq(1, 2, 3) ~: Seq("x", "y", "z"))
     right_associativity.begin
     received should be(true)
@@ -82,7 +82,7 @@ class GeneratorTest extends FunSuite
         if (received)
           fail("Should only be called once when no extra data has been pushed.")
         received = true
-        x should be(Seq(Some(Received(Some(Seq(1, 2, 3)),Seq())), Some(Received(Some(Seq("x", "y", "z")),Seq())))) //Due to left associativity
+        x should be(Seq(Some(Seq(1, 2, 3)), Some(Seq("x", "y", "z")))) //Due to left associativity
       }
     left_associativity.begin
     received should be(true)
@@ -116,7 +116,7 @@ class GeneratorTest extends FunSuite
       , Pass(Some(Seq(Some(Received(Some(Seq(Some(Received(Some(Seq(1, 2, 3)),Seq())), Some(Received(Some(Seq("x", "y", "z")),Seq())))),Seq(Some(Received(Some(Seq(1, 2, 3)),Seq())), Some(Received(Some(Seq("x", "y", "z")),Seq()))))), Some(Received(Some(Seq("a")),Seq())), Some(Received(Some(Seq("b")),Seq())))))
     )
 
-    var junction_passes = 4
+    var junction_passes_1, junction_passes_2 = 4
 
     val c1 = Seq(1, 2, 3) ~ Seq("x", "y", "z")
     val c2 = c1 |>> ((x: Received) => {
@@ -131,12 +131,18 @@ class GeneratorTest extends FunSuite
       true
     })
     val c5 = c4 >> (x => {
-      junction_passes -= 1
+      junction_passes_1 -= 1
       //println(s"junction: $x \n")
     })
-    c5.begin
+    val c6 = c5 >> ((x:Any) => {
+      junction_passes_2 -= 1
+      //println(s"x: $x")
+    })
 
-    junction_passes should be(0)
+    c6.begin
+
+    junction_passes_1 should be(0)
+    junction_passes_2 should be(0)
   }
 
 }
