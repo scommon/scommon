@@ -390,19 +390,26 @@ private[reactive] sealed case class JunctionImpl(
       //  Seq(Some(Received(<data> Some(Seq("x", "y", "z")), <children> Seq())), Some(Received(<data> Some(Seq(1, 2, 3)), <children> Seq())))
       //and produces:
       //  Seq(Some(Seq("x", "y", "z")), Some(Seq(1, 2, 3)))
-      val lifted =
-        data match {
-          case Seq(x @ _*) =>
-            for(y <- x) yield y match {
-              case Some(Received(r, _)) => r
-              case _ => None
-            }
+      //
+      //Doing this is relatively easy -- the leaf nodes hold the data. We just
+      //need to traverse the data structure and save off the data of any leaf
+      //node we encounter.
+      val stack = mutable.Stack[Received]()
+      val lifted = mutable.Stack[Option[Any]]()
 
-          case _ =>
-            data
-        }
+      stack.push(received)
 
-      var last = lifted
+      while(stack.nonEmpty) {
+        val next = stack.pop()
+
+        if (next.children.isEmpty)
+          lifted.push(next.data)
+
+        for(c <- next.children; n <- c)
+         stack.push(n)
+      }
+
+      var last:Any = lifted.toSeq
       for (j <- junctions)
         last = j(last)
     }
