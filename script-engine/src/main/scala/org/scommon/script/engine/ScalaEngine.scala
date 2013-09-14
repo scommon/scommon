@@ -4,23 +4,30 @@ import org.scommon.script.engine.core._
 import org.scommon.core.Version
 import org.scommon.reactive.Generator
 
-object ScalaEngine extends EngineFactory {
-  import ScalaSettings._
+import scala.language.implicitConversions
 
+object ScalaEngine extends EngineFactory[Scala] {
   val instance = this
 
-  lazy val details = new EngineDetails {
-    val name: String = "scala-engine"
-    val title: String = "Scala Engine"
+  lazy val details = new EngineDetails[Scala] {
+    val name: String     = "scala-engine"
+    val title: String    = "Scala Engine"
     val version: Version = ScalaCompiler.version
 
-    val defaultSettings: CompilerSettings = null
+    val defaultSettings = new CompilerSettings[Scala] {
+      def compiler: Scala =
+        Scala.defaults
+    }
   }
 
-  def newEngine[T](settings: CompilerSettings, generator: Generator[CompilerSource[T]]): Engine =
-    new ScalaEngine(settings, generator)
+  def newEngine[U >: Scala, T](settings: CompilerSettings[U], generator: Generator[CompilerSource[T]]): Engine[U] =
+    new ScalaEngine[U, T](details, settings, generator)
 }
 
-class ScalaEngine[T](val settings: ScalaSettings, generator: Generator[CompilerSource[T]]) extends Engine {
+class ScalaEngine[U >: Scala, T](
+  val details: EngineDetails[U],
+  val settings: CompilerSettings[U],
+  generator: Generator[CompilerSource[T]])
+extends Engine[U] {
 
 }

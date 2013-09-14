@@ -56,7 +56,7 @@ class ScratchTest extends FunSuite
       val working_directory: java.nio.file.Path = java.nio.file.Paths.get(workingDirectory).toRealPath(LinkOption.NOFOLLOW_LINKS).toAbsolutePath
 
       //TODO: Add error/warning listener.
-      val default = Engine.newEngine(
+      val default = Engine.newEngine[Scala](
         """
           |package whatever
           |trait Bar
@@ -67,6 +67,7 @@ class ScratchTest extends FunSuite
           |}
         """.stripMargin
       )
+      println(default.settings.compiler)
 
       def error(message:String): Unit = println(s"$message")
 
