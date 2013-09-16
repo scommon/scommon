@@ -44,6 +44,7 @@ trait Scala extends CompilerSpecificSettings {
     , Field.withDefault("usejavacp",         "Use java.class.path", "Utilize the java.class.path in classpath resolution.", usejavacp)
     , Field.withDefault("verbose",           "Verbose", "Output messages about what the compiler is doing.", verbose)
     , Field.withDefault("elidebelow",        "Elide Below", "Calls to @elidable methods are omitted if method priority is lower than argument", elidebelow)
+    //Specifically do not add phaseInterceptors and fnCustomize.
   )
 
   def extdirs          : String
@@ -65,6 +66,7 @@ trait Scala extends CompilerSpecificSettings {
   def elidebelow       : Int
 
   def fnCustomize      : (nsc.Settings => nsc.Settings)
+  def phaseInterceptors: Iterable[ScalaPhaseIntercept]
 }
 
 object ScalaCompilerSettings {
@@ -76,10 +78,6 @@ object ScalaCompilerSettings {
 
   private[engine] def toNscSettings(c: CompilerSettings[Scala]): nsc.Settings = {
     val s = new nsc.Settings(/*error fn*/)
-
-    val (success, unprocessed) = s.processArguments(c.options.toList, false)
-    if (!success)
-      throw CompilerError(s"Invalid arguments provided for the script engine Scala compiler. Arguments not processed: ${unprocessed.mkString(", ")}")
 
     s.outdir.value            = c.outputDirectory.toAbsolutePath.toString
 
@@ -107,6 +105,10 @@ object ScalaCompilerSettings {
     for(element <- c.relativeCustomClassPath)
       s.classpath.prepend(element)
 
+    val (success, unprocessed) = s.processArguments(c.options.toList, false)
+    if (!success)
+      throw CompilerError(s"Invalid arguments provided for the script engine Scala compiler. Arguments not processed: ${unprocessed.mkString(", ")}")
+
     c.specific.fnCustomize(s)
   }
 }
@@ -130,5 +132,6 @@ case class ScalaSpecificSettings(
   , var verbose          : Boolean                 = false
   , var elidebelow       : Int                     = 900
 
+  , var phaseInterceptors: Iterable[ScalaPhaseIntercept] = Seq()
   ,     fnCustomize      : (nsc.Settings => nsc.Settings) = (x => x)
 ) extends Scala

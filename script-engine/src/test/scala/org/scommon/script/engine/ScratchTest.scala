@@ -65,6 +65,7 @@ class ScratchTest extends FunSuite
         """
           |package whatever
           |trait Bar
+          |case class SomeCaseClass() extends org.scommon.script.engine.MyTestTrait
           |object A {
           |  object Baz {
           |    class Foo extends Bar with org.scommon.script.engine.MyTestTrait

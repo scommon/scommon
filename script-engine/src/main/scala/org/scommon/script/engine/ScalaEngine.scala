@@ -56,7 +56,7 @@ extends Engine[Scala] {
 
   private[this] val reporter: nsc.reporters.Reporter = new nsc.reporters.ConsoleReporter(compiler_settings)
 
-  private[this] val compiler = new ScalaCompiler(compiler_settings, reporter, Seq(new FilterForClassesImplementingTrait()), Some(new CompilerProgressListener {
+  private[this] val compiler = new ScalaCompiler(compiler_settings, reporter, Seq(new FilterForClassesImplementingTrait()) ++ settings.specific.phaseInterceptors, Some(new CompilerProgressListener {
     def progressUpdate(update: CompilerProgress):Unit = println(update)
   }))
 
