@@ -22,11 +22,11 @@ object ScalaCompiler {
   implicit def toSubComponent(intercept: ScalaPhaseIntercept, providedGlobal: nsc.Global): nsc.SubComponent = new nsc.SubComponent { self =>
     import providedGlobal._
 
-    val global = providedGlobal
-    val phaseName = intercept.name
-    val name = phaseName
-    val runsAfter = intercept.runsAfterPhases.map(_.phaseName).toList
-    val runsRightAfter = intercept.runsRightAfterPhase.map(_.phaseName)
+    val global              = providedGlobal
+    val phaseName           = intercept.name
+    val name                = phaseName
+    val runsAfter           = intercept.runsAfterPhases.map(_.phaseName).toList
+    val runsRightAfter      = intercept.runsRightAfterPhase.map(_.phaseName)
     override val runsBefore = intercept.runsBeforePhases.map(_.phaseName).toList
 
     require(runsBefore     forall CompilerPhase.isKnown, s"All phases specified in ${typeOf[CompilerPhaseIntercept].toLongString}.runsBeforePhases must be a known valid value")
@@ -82,13 +82,17 @@ object ScalaCompiler {
     }
 }
 
-class ScalaCompiler(val settings: nsc.Settings, val reporter: nsc.reporters.Reporter, val intercepts: Iterable[ScalaPhaseIntercept], progressListener: Option[CompilerProgressListener] = None)
-extends core.Compiler
+class ScalaCompiler(
+  val settings: nsc.Settings,
+  val reporter: nsc.reporters.Reporter,
+  val intercepts: Iterable[ScalaPhaseIntercept],
+      progressListener: Option[CompilerProgressListener] = None
+) extends core.Compiler
 {
   import ScalaCompiler._
 
-  val name = ScalaCompiler.name
-  val title = ScalaCompiler.title
+  val name    = ScalaCompiler.name
+  val title   = ScalaCompiler.title
   val version = ScalaCompiler.version
 
   private[this] val compiler =

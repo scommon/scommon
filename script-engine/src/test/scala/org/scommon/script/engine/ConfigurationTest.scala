@@ -4,10 +4,11 @@ import org.scalatest.junit.JUnitRunner
 import org.scalatest.{SeveredStackTraces, FunSuite}
 import org.junit.runner.RunWith
 import org.scalatest.matchers.ShouldMatchers
-import org.scommon.script.engine.core.Engine
 import com.typesafe.config.ConfigFactory
 import com.typesafe.config.ConfigException.ValidationFailed
 
+import org.scommon.reflect._
+import org.scommon.script.engine.core.Engine
 
 @RunWith(classOf[JUnitRunner])
 class ConfigurationTest extends FunSuite

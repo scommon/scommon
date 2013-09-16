@@ -7,6 +7,7 @@ import scala.reflect.internal.MissingRequirementError
 import java.util.concurrent.locks.ReentrantLock
 import java.net.URI
 import org.scommon.reactive.Generator
+import org.scommon.reflect._
 
 object Engine {
   //Lazily gets the list of factories. Deliberately do *not* use lazy vals here because this could
@@ -14,9 +15,9 @@ object Engine {
   private[this] val configuration_load_lock = new ReentrantLock()
   private[this] var lazy_configuration: Option[FactoriesFromConfiguration] = None
 
-  case class FactoriesFromConfiguration(default: EngineFactory[Any], factories: Iterable[EngineFactory[Any]])
+  case class FactoriesFromConfiguration(default: EngineFactory[CompilerSpecificSettings], factories: Iterable[EngineFactory[CompilerSpecificSettings]])
 
-  def default[S]: EngineFactory[S] =
+  def default[S <: CompilerSpecificSettings]: EngineFactory[S] =
     default()
 
   /**
@@ -30,14 +31,14 @@ object Engine {
    * @param configuration [[com.typesafe.config.Config]] instance to use when loading the configuration.
    * @return The default [[org.scommon.script.engine.core.EngineFactory]] instance.
    */
-  def default[S](context: ClassLoader = Thread.currentThread().getContextClassLoader(), configuration: Config = null): EngineFactory[S] = {
+  def default[S <: CompilerSpecificSettings](context: ClassLoader = Thread.currentThread().getContextClassLoader(), configuration: Config = null): EngineFactory[S] = {
     lazy_configuration
       .getOrElse(lazy_load_factories(context, configuration))
       .default
       .asInstanceOf[EngineFactory[S]]
   }
 
-  def factories: Iterable[EngineFactory[Any]] =
+  def factories: Iterable[EngineFactory[CompilerSpecificSettings]] =
     factories()
 
   /**
@@ -51,7 +52,7 @@ object Engine {
    * @param configuration [[com.typesafe.config.Config]] instance to use when loading the configuration.
    * @return [[scala.collection.Iterable]] of [[org.scommon.script.engine.core.EngineFactory]] instances.
    */
-  def factories(context: ClassLoader = Thread.currentThread().getContextClassLoader(), configuration: Config = null): Iterable[EngineFactory[Any]] = {
+  def factories(context: ClassLoader = Thread.currentThread().getContextClassLoader(), configuration: Config = null): Iterable[EngineFactory[CompilerSpecificSettings]] = {
     lazy_configuration
       .getOrElse(lazy_load_factories(context, configuration))
       .factories
@@ -87,7 +88,7 @@ object Engine {
     //for the provided factory.
     val runtime_mirror = universe.runtimeMirror(context)
 
-    var default:EngineFactory[Any] = null
+    var default:EngineFactory[CompilerSpecificSettings] = null
     val scoped = config.getConfig("script-engine")
     val script_engines = scoped.getObjectList("engines")
     val script_default = scoped.getString("default")
@@ -103,11 +104,11 @@ object Engine {
           val obj             = runtime_mirror.reflectModule(module)
           val class_of_module = obj.instance.getClass
 
-          if (!classOf[EngineFactory[Any]].isAssignableFrom(class_of_module)) {
-            throw new IllegalStateException(s"${obj.symbol.fullName} must be a subtype of ${classOf[EngineFactory[Any]].getName}")
+          if (!classOf[EngineFactory[CompilerSpecificSettings]].isAssignableFrom(class_of_module)) {
+            throw new IllegalStateException(s"${obj.symbol.fullName} must be a subtype of ${classOf[EngineFactory[CompilerSpecificSettings]].getName}")
           }
 
-          val instance = obj.instance.asInstanceOf[EngineFactory[Any]]
+          val instance = obj.instance.asInstanceOf[EngineFactory[CompilerSpecificSettings]]
           val requested_instance = instance.instance
 
           if (script_default == name)
@@ -116,7 +117,7 @@ object Engine {
           requested_instance
         } catch {
           case mre:MissingRequirementError =>
-            throw new IllegalStateException(s"Unable to find factory of type ${classOf[EngineFactory[Any]].getName} for $name:$factory")
+            throw new IllegalStateException(s"Unable to find factory of type ${classOf[EngineFactory[CompilerSpecificSettings]].getName} for $name:$factory")
         }
       }
 
@@ -125,40 +126,42 @@ object Engine {
     FactoriesFromConfiguration(default, engines)
   }
 
-  def newEngine[S](sourceCode: String, addlSourceCode: String*): Engine[S] =
+  def newEngine[S <: CompilerSpecificSettings](sourceCode: String, addlSourceCode: String*): Engine[S] =
     newEngine[S, URI](CompilerSourceGenerator.fromStrings(sourceCode +: addlSourceCode))
 
-  def newEngine[S](settings: CompilerSettings[S], sourceCode: String, addlSourceCode: String*): Engine[S] =
+  def newEngine[S <: CompilerSpecificSettings](settings: CompilerSettings[S], sourceCode: String, addlSourceCode: String*): Engine[S] =
     newEngine[S, URI](settings, CompilerSourceGenerator.fromStrings(sourceCode +: addlSourceCode))
 
-  def apply[S, T](generator: Generator[CompilerSource[T]]): Engine[S] =
+  def apply[S <: CompilerSpecificSettings, T](generator: Generator[CompilerSource[T]]): Engine[S] =
     newEngine[S, T](generator)
 
-  def newEngine[S, T](generator: Generator[CompilerSource[T]]): Engine[S] = {
+  def newEngine[S <: CompilerSpecificSettings, T](generator: Generator[CompilerSource[T]]): Engine[S] = {
     //Do it this way b/c it's possible the default changes from underneath
     //you between calls (very unlikely but still possible).
     val d = default[S]
     d.newEngine[S, T](d.details.defaultSettings, generator)
   }
 
-  def apply[S, T](settings: CompilerSettings[S], generator: Generator[CompilerSource[T]]): Engine[S] =
+  def apply[S <: CompilerSpecificSettings, T](settings: CompilerSettings[S], generator: Generator[CompilerSource[T]]): Engine[S] =
     newEngine[S, T](settings, generator)
 
-  def newEngine[S, T](settings: CompilerSettings[S], generator: Generator[CompilerSource[T]]): Engine[S] =
+  def newEngine[S <: CompilerSpecificSettings, T](settings: CompilerSettings[S], generator: Generator[CompilerSource[T]]): Engine[S] =
     default[S].newEngine(settings, generator)
 
   def newScalaEngine[T](settings: CompilerSettings[Scala], generator: Generator[CompilerSource[T]]): Engine[Scala] =
     ScalaEngine.newEngine[Scala, T](settings, generator)
 }
 
-trait EngineFactory[+S] {
+trait CompilerSpecificSettings extends StandardFieldMirror
+
+trait EngineFactory[+S <: CompilerSpecificSettings] {
   def instance: EngineFactory[S]
   def details: EngineDetails[S]
-  def newEngine[U >: S, T](settings: CompilerSettings[U], generator: Generator[CompilerSource[T]]): Engine[U]
+  def newEngine[U >: S <: CompilerSpecificSettings, T](settings: CompilerSettings[U], generator: Generator[CompilerSource[T]]): Engine[S]
   override def toString = s"$details"
 }
 
-trait EngineDetails[+S] {
+trait EngineDetails[+S <: CompilerSpecificSettings] {
   def name: String
   def title: String
   def version: Version
@@ -166,9 +169,7 @@ trait EngineDetails[+S] {
   override def toString = s"$title v$version"
 }
 
-trait Engine[+S] {
+trait Engine[+S <: CompilerSpecificSettings] {
   def details: EngineDetails[S]
   def settings: CompilerSettings[S]
 }
-
-
