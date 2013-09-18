@@ -56,9 +56,12 @@ class ScratchTest extends FunSuite
       val working_directory: java.nio.file.Path = java.nio.file.Paths.get(workingDirectory).toRealPath(LinkOption.NOFOLLOW_LINKS).toAbsolutePath
 
       val my = ScalaCompilerSettings()
+      my.handlers.progressUpdate = (_, progress) => {
+        println(s"Progress: $progress")
+      }
       my.customClassPath = customClassPath
       my.relativeDirectory = working_directory
-      my.options = Seq("-Xprint-types", "-Xshow-phases", "-Ydebug")
+      //my.options = Seq("-Xprint-types", "-Xshow-phases", "-Ydebug")
 
       //TODO: Add error/warning listener.
       val engine = Engine.newEngine[Scala](my,
@@ -85,3 +88,4 @@ class ScratchTest extends FunSuite
 }
 
 trait MyTestTrait
+

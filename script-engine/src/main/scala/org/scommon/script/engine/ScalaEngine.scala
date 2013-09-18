@@ -3,6 +3,7 @@ package org.scommon.script.engine
 import _root_.scala.tools.nsc
 import _root_.scala.collection._
 import scala.reflect.io.{Directory, PlainDirectory}
+import scala.reflect.internal.util.{NoPosition => SNoPosition, Position => SPosition}
 
 import java.net.URI
 
@@ -54,10 +55,44 @@ extends Engine[Scala] {
     s
   }
 
-  private[this] val reporter: nsc.reporters.Reporter = new nsc.reporters.ConsoleReporter(compiler_settings)
+  private[this] val reporter: nsc.reporters.Reporter = new nsc.reporters.AbstractReporter() {
+    val settings = compiler_settings
+
+    def displayPrompt(): Unit = {}
+
+    def display(pos: SPosition, msg: String, severity: Severity) {
+      val m: String = SPosition.formatMessage(pos, msg, true)
+
+      val s: CompilerMessageSeverity.EnumVal =
+        if (severity == ERROR)
+          CompilerMessageSeverity.Error
+        else if (severity == WARNING)
+          CompilerMessageSeverity.Warning
+        else if (severity == INFO)
+          CompilerMessageSeverity.Information
+        else
+          CompilerMessageSeverity.Unknown
+
+      val p: Position =
+        if (pos eq null)
+          UnknownPosition
+        else {
+          val pos_in =
+            if (pos.isDefined)
+              pos.inUltimateSource(pos.source)
+            else
+              pos
+          StandardPosition(pos_in.line, pos_in.column)
+        }
+
+      val standard_msg = StandardCompilerMessage(s, m, p)
+      ScalaEngine.this.settings.handlers.messageReceived(ScalaEngine.this, standard_msg)
+    }
+  }
 
   private[this] val compiler = new ScalaCompiler(compiler_settings, reporter, Seq(new FilterForClassesImplementingTrait()) ++ settings.specific.phaseInterceptors, Some(new CompilerProgressListener {
-    def progressUpdate(update: CompilerProgress):Unit = println(update)
+    def progressUpdate(update: CompilerProgress):Unit =
+      settings.handlers.progressUpdate(ScalaEngine.this, update)
   }))
 
   private[this] val pipeline = ((

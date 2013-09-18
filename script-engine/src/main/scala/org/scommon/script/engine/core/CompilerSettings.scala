@@ -16,7 +16,11 @@ trait CompilerSettings[+TSpecific <: CompilerSpecificSettings] extends StandardF
     , Field.withDefault("classPath", "Classpath", "The classpath used by the compiler to resolve type references.", classPath)
     , Field.withDefault("bootClassPath", "Boot Classpath", "The classpath used by the compiler for the bootstrap class loader.", bootClassPath)
     , Field.withDefault("customClassPath", "Custom Classpath", "Additional classpath that will be prepended to the standard classpath.", customClassPath)
+
+    //Deliberately omit specific, handlers, and relativeCustomClassPath since they're not meant to be set directly.
   )
+
+  def handlers: CompilerEventHandlers
 
   def inMemory: Boolean
   def relativeDirectory: Path
@@ -27,7 +31,7 @@ trait CompilerSettings[+TSpecific <: CompilerSpecificSettings] extends StandardF
   def bootClassPath: Iterable[String]
   def customClassPath: Iterable[String]
 
-  def relativeCustomClassPath: Iterable[String] = {
+  final def relativeCustomClassPath: Iterable[String] = {
     val resolved = (
       for {
         custom <- customClassPath
@@ -54,14 +58,15 @@ trait CompilerSettings[+TSpecific <: CompilerSpecificSettings] extends StandardF
 }
 
 case class StandardCompilerSettings[+S <: CompilerSpecificSettings](
-    var inMemory          : Boolean          = true
-  , var relativeDirectory : Path             = Paths.get(".").toRealPath(LinkOption.NOFOLLOW_LINKS).toAbsolutePath
-  , var outputDirectory   : Path             = Paths.get(PathUtil.querySystemUserTempDirectory)
-  , var options           : Iterable[String] = Iterable.empty
-  , var temporaryDirectory: Path             = Paths.get(PathUtil.querySystemUserTempDirectory)
-  , var classPath         : Iterable[String] = Environment.determineFullUserClassPath()
-  , var bootClassPath     : Iterable[String] = Environment.determineFullUserClassPath()
-  , var customClassPath   : Iterable[String] = Iterable.empty
+    var handlers          : StandardCompilerEventHandlers = StandardCompilerEventHandlers()
+  , var inMemory          : Boolean                = true
+  , var relativeDirectory : Path                   = Paths.get(".").toRealPath(LinkOption.NOFOLLOW_LINKS).toAbsolutePath
+  , var outputDirectory   : Path                   = Paths.get(PathUtil.querySystemUserTempDirectory)
+  , var options           : Iterable[String]       = Iterable.empty
+  , var temporaryDirectory: Path                   = Paths.get(PathUtil.querySystemUserTempDirectory)
+  , var classPath         : Iterable[String]       = Environment.determineFullUserClassPath()
+  , var bootClassPath     : Iterable[String]       = Environment.determineFullUserClassPath()
+  , var customClassPath   : Iterable[String]       = Iterable.empty
   ,     specific          : S
 ) extends CompilerSettings[S] {
 

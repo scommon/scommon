@@ -121,7 +121,7 @@ class ScalaCompiler(
       if (current != lastPhase) {
         lastPhase = current
         if (progressListener.isDefined) {
-          progressListener.get.progressUpdate(CompilerProgress(
+          progressListener.get.progressUpdate(StandardCompilerProgress(
             phase           = currentPhase,
             phaseIndex      = current,
             totalPhaseCount = total,
