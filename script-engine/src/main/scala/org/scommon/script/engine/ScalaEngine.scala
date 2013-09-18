@@ -67,6 +67,9 @@ extends Engine[Scala] {
     >> process_source
   ).begin
 
+  def close(): Unit =
+    pipeline.cancel()
+
   //Extracts the CompilerSource instances from the junction data (which is what's processing the generator's
   //generated values). The reactive library gathers
   private[this] def lift_source: PartialFunction[Any, Any] = {

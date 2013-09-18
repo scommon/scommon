@@ -169,7 +169,7 @@ trait EngineDetails[+S <: CompilerSpecificSettings] {
   override def toString = s"$title v$version"
 }
 
-trait Engine[+S <: CompilerSpecificSettings] {
+trait Engine[+S <: CompilerSpecificSettings] extends Closeable {
   def details: EngineDetails[S]
   def settings: CompilerSettings[S]
 }

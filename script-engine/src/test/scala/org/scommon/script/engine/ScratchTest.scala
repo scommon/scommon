@@ -73,6 +73,8 @@ class ScratchTest extends FunSuite
           |}
         """.stripMargin
       )
+      usingUnit(engine) {
+      }
 
       def error(message:String): Unit = println(s"$message")
     } finally {

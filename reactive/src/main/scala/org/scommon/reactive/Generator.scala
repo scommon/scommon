@@ -3,6 +3,8 @@ package org.scommon.reactive
 import scala.collection._
 import java.util.concurrent.locks.ReentrantLock
 
+import org.scommon.core.Closeable
+
 import scala.language.implicitConversions
 
 object Generator {
@@ -61,7 +63,7 @@ object Generator {
 
 import Generator._
 
-trait Generator[+TGenerate] {
+trait Generator[+TGenerate] extends Closeable {
   @volatile private[reactive] var started  = false
   private[reactive] val receivers_lock     = new ReentrantLock()
   private[reactive] val receivers          = mutable.LinkedHashSet[Receiver]()
@@ -77,6 +79,7 @@ trait Generator[+TGenerate] {
   private[reactive] def embrace_right_associative[T](generator: Generator[T]): Embrace =
     embrace_left_associative[T](generator)
 
+  def close(): Unit = {}
 
   /** Monoidal in nature. */
   def initial: Iterable[TGenerate] =
@@ -181,6 +184,10 @@ trait Embrace extends Generator[Any] { self: Receiver =>
 
     started = true
   }
+
+  final override def close(): Unit =
+    for(g <- generators)
+      g.close()
 }
 
 private[reactive] sealed case class EmbraceImpl(
@@ -321,7 +328,7 @@ trait JunctionCancellable {
 
 trait JunctionMagnet[+T] extends JunctionProcessor[T]
 
-trait Junction {
+trait Junction extends Closeable {
   private[reactive] val associated_embrace: Embrace
   private[reactive] val associated_barriers: Seq[BarrierMagnet]
   private[reactive] val junctions: Seq[JunctionMagnet[Any]]
@@ -357,6 +364,7 @@ private[reactive] sealed case class JunctionImpl(
   override val junctions: Seq[JunctionMagnet[Any]]
 ) extends Junction with Receiver {
   @volatile private[this] var cancelled = false
+
 
   private[reactive] def remove_left_associative(barrier: BarrierMagnet): Junction =
     JunctionImpl(associated_embrace, associated_barriers diff Seq(barrier), junctions)
@@ -415,13 +423,19 @@ private[reactive] sealed case class JunctionImpl(
     }
   }
 
-  def begin: JunctionCancellable = {
+  final def begin: JunctionCancellable = {
     associated_embrace.register(this)
     associated_embrace.start()
 
     new JunctionCancellable {
-      def cancel(): Unit =
+      def cancel(): Unit = {
         cancelled = true
+        close()
+      }
     }
+  }
+
+  final override def close(): Unit = {
+    associated_embrace.close()
   }
 }
