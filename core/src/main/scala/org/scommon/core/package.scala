@@ -75,6 +75,22 @@ package object core {
   def using[A <: java.io.Closeable](closeable: UsingMagnet[A])(body: A => Unit):Unit =
     closeable.foreach(body)
 
+  /**
+   * Accepts [[org.scommon.core.UsingMagnet]] instances and provides automatic
+   * resource cleanup after the evaluation of the provided body.
+   *
+   * Instances of [[org.scommon.core.UsingMagnet]] are typically derived via
+   * implicit conversion from a [[org.scommon.core.CloseableType]] or an instance
+   * of [[org.scommon.core.Closeable]] or [[java.io.Closeable]].
+   *
+   * @param closeable Instance of a [[org.scommon.core.UsingMagnet]].
+   * @param body Body that will execute and be automatically cleaned up afterwards.
+   * @tparam A Type of resource provided.
+   * @return Return nothing.
+   */
+  def usingUnit[A <: java.io.Closeable](closeable: UsingMagnet[A])(body: => Unit):Unit =
+    closeable.foreach(c => body)
+
   //The following allows us to use anything with a .close() method in a for comprehension w/
   //automatic cleanup.
   private[this] class ResourceWithAutomaticCleanup[A](resource:A, fnOnFinally:A => Unit) extends ForEachProcessor {
