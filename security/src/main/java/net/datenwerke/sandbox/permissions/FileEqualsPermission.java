@@ -59,7 +59,7 @@ public class FileEqualsPermission implements FilePermission {
 	@Override
 	public boolean testPermission(String file) {
         final String sanitized_file;
-        if (file.endsWith("-") || file.endsWith("*"))
+        if (file.endsWith("/-") || file.endsWith("\\-") || file.endsWith("/*") || file.endsWith("\\*"))
             sanitized_file = file.substring(0, file.length() - 1);
         else
             sanitized_file = file;
