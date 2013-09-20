@@ -26,7 +26,7 @@ private[engine] object ScalaEngine extends EngineFactory[Scala] {
     val defaultSettings = ScalaCompilerSettings()
   }
 
-  def newEngine[U >: Scala <: CompilerSpecificSettings, T](settings: CompilerSettings[U], generator: Generator[CompilerSource[T], CompilerContext]): Engine[Scala] =
+  def newEngine[U >: Scala <: CompilerSpecificSettings, T](settings: CompilerSettings[U], generator: Generator[CompilerSource[T], CompilerContext]): Engine[Scala, T] =
     new ScalaEngine[T](details, settings.asInstanceOf[CompilerSettings[Scala]], generator)
 }
 
@@ -34,8 +34,8 @@ private[engine] object ScalaEngine extends EngineFactory[Scala] {
 private[engine] class ScalaEngine[T](
   val details: EngineDetails[Scala],
   val settings: CompilerSettings[Scala],
-  generator: Generator[CompilerSource[T], CompilerContext])
-extends Engine[Scala] {
+  val generator: Generator[CompilerSource[T], CompilerContext])
+extends Engine[Scala, T] {
   import Generator._
 
   private[this] val translated_settings =

@@ -126,16 +126,16 @@ object Engine {
     FactoriesFromConfiguration(default, engines)
   }
 
-  def newEngine[S <: CompilerSpecificSettings](sourceCode: String, addlSourceCode: String*): Engine[S] =
+  def newEngine[S <: CompilerSpecificSettings](sourceCode: String, addlSourceCode: String*): Engine[S, URI] =
     newEngine[S, URI](CompilerSourceGenerator.fromStrings(sourceCode +: addlSourceCode))
 
-  def newEngine[S <: CompilerSpecificSettings](settings: CompilerSettings[S], sourceCode: String, addlSourceCode: String*): Engine[S] =
+  def newEngine[S <: CompilerSpecificSettings](settings: CompilerSettings[S], sourceCode: String, addlSourceCode: String*): Engine[S, URI] =
     newEngine[S, URI](settings, CompilerSourceGenerator.fromStrings(sourceCode +: addlSourceCode))
 
-  def apply[S <: CompilerSpecificSettings, T](generator: Generator[CompilerSource[T], CompilerContext]): Engine[S] =
+  def apply[S <: CompilerSpecificSettings, T](generator: Generator[CompilerSource[T], CompilerContext]): Engine[S, T] =
     newEngine[S, T](generator)
 
-  def newEngine[S <: CompilerSpecificSettings, T](generator: Generator[CompilerSource[T], CompilerContext]): Engine[S] = {
+  def newEngine[S <: CompilerSpecificSettings, T](generator: Generator[CompilerSource[T], CompilerContext]): Engine[S, T] = {
     //Do it this way b/c it's possible the default changes from underneath
     //you between calls (very unlikely but still possible).
     val d = default[S]
@@ -143,13 +143,13 @@ object Engine {
     d.newEngine[S, T](settings, generator withDefaultContext settings)
   }
 
-  def apply[S <: CompilerSpecificSettings, T](settings: CompilerSettings[S], generator: Generator[CompilerSource[T], CompilerContext]): Engine[S] =
+  def apply[S <: CompilerSpecificSettings, T](settings: CompilerSettings[S], generator: Generator[CompilerSource[T], CompilerContext]): Engine[S, T] =
     newEngine[S, T](settings, generator)
 
-  def newEngine[S <: CompilerSpecificSettings, T](settings: CompilerSettings[S], generator: Generator[CompilerSource[T], CompilerContext]): Engine[S] =
+  def newEngine[S <: CompilerSpecificSettings, T](settings: CompilerSettings[S], generator: Generator[CompilerSource[T], CompilerContext]): Engine[S, T] =
     default[S].newEngine(settings, generator withDefaultContext settings)
 
-  def newScalaEngine[T, C >: CompilerContext <: CompilerContext](settings: CompilerSettings[Scala], generator: Generator[CompilerSource[T], CompilerContext]): Engine[Scala] =
+  def newScalaEngine[T, C >: CompilerContext <: CompilerContext](settings: CompilerSettings[Scala], generator: Generator[CompilerSource[T], CompilerContext]): Engine[Scala, T] =
     ScalaEngine.newEngine[Scala, T](settings, generator withDefaultContext settings)
 }
 
@@ -158,7 +158,7 @@ trait CompilerSpecificSettings extends StandardFieldMirror
 trait EngineFactory[+S <: CompilerSpecificSettings] {
   def instance: EngineFactory[S]
   def details: EngineDetails[S]
-  def newEngine[U >: S <: CompilerSpecificSettings, T](settings: CompilerSettings[U], generator: Generator[CompilerSource[T], CompilerContext]): Engine[S]
+  def newEngine[U >: S <: CompilerSpecificSettings, T](settings: CompilerSettings[U], generator: Generator[CompilerSource[T], CompilerContext]): Engine[S, T]
   override def toString = s"$details"
 }
 
@@ -170,7 +170,8 @@ trait EngineDetails[+S <: CompilerSpecificSettings] {
   override def toString = s"$title v$version"
 }
 
-trait Engine[+S <: CompilerSpecificSettings] extends Closeable {
+trait Engine[+S <: CompilerSpecificSettings, +T] extends Closeable {
   def details: EngineDetails[S]
   def settings: CompilerSettings[S]
+  def generator: Generator[CompilerSource[T], CompilerContext]
 }

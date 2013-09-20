@@ -76,6 +76,7 @@ class ScratchTest extends FunSuite
           |}
         """.stripMargin
       )
+      engine.generator.push()
       usingUnit(engine) {
       }
 

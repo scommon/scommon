@@ -1,8 +1,8 @@
 package org.scommon.script.engine.core
 
 object CompilerEventHandlers {
-  type MessageReceived = (Engine[CompilerSpecificSettings], CompilerMessage) => Unit
-  type ProgressUpdate = (Engine[CompilerSpecificSettings], CompilerProgress) => Unit
+  type MessageReceived = (Engine[CompilerSpecificSettings, Any], CompilerMessage) => Unit
+  type ProgressUpdate = (Engine[CompilerSpecificSettings, Any], CompilerProgress) => Unit
 
   val DEFAULT_MESSAGE_RECEIVED: MessageReceived = (_, msg) => {
     msg.severity match {

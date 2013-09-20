@@ -113,6 +113,9 @@ trait Generator[+TGenerate, TContext] extends Closeable {
   final def push[T >: TGenerate](instances: Iterable[T]): Unit =
     push(defaultContext, instances)
 
+  final def push[T >: TGenerate](context: Option[TContext], instance: T): Unit =
+    push(context, Iterable(instance))
+
   final def push[T >: TGenerate](context: Option[TContext], instances: Iterable[T]): Unit = {
     receivers_lock.lock()
     try {
