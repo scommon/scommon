@@ -58,7 +58,7 @@ extends Engine[Scala, T] {
     case ((Some(c: CompilerContext), Seq(Some(t @ Seq(_*)), _*))) => (c, t)
   }
 
-  private[this] def process_source: PartialFunction[Any, Unit] = { case ((context: CompilerContext, (sources: Seq[CompilerSource[_]] @unchecked))) =>
+  private[this] def process_source: PartialFunction[Any, Unit] = { case ((context: CompilerContext, (sources: Seq[CompilerSource[T]] @unchecked))) =>
     sources.foreach(x => println(s"Compiling ${x.source}"))
 
     val output_dir: nsc.io.AbstractFile = {

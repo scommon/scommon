@@ -6,3 +6,9 @@ package org.scommon.script.engine.core
 trait CompilerContext {
   def handlers: CompilerEventHandlers
 }
+
+case class StandardCompilerContext(
+    var handlers: StandardCompilerEventHandlers = StandardCompilerEventHandlers()
+) extends CompilerContext {
+
+}

@@ -1,6 +1,6 @@
 package org.scommon.script.engine.core
 
-import java.io.InputStream
+import java.io.{ByteArrayInputStream, InputStream}
 import java.net.URI
 import java.util.UUID
 import scala.collection.mutable
@@ -15,6 +15,9 @@ trait CompilerSource[+TSource] {
 }
 
 object CompilerSource {
+  def fromString(value: String) =
+    fromStream(new ByteArrayInputStream(value.getBytes("UTF-8")))
+
   def fromStream(input: InputStream, inputSource: URI = URI.create(s"mem:///stream/${UUID.randomUUID().toString}")): CompilerSource[URI] = {
     new CompilerSource[URI] {
       lazy val contents = {

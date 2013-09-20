@@ -76,8 +76,24 @@ class ScratchTest extends FunSuite
           |}
         """.stripMargin
       )
-      engine.generator.push()
+
       usingUnit(engine) {
+        val context = Some {
+          val ctx = StandardCompilerContext()
+          ctx.handlers.messageReceived = (e, m) => {
+            println(s"OTHER CONTEXT: ${m.message}")
+          }
+          ctx
+        }
+
+        //Pushing with a different context invokes its handlers.
+        engine.generator.push(context, CompilerSource.fromString(
+          """
+            |package second
+            |trait Foo
+            |objectz Bar
+          """.stripMargin
+        ))
       }
 
       def error(message:String): Unit = println(s"$message")
