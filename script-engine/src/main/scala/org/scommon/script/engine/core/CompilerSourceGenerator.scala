@@ -10,7 +10,7 @@ import java.net.URI
 
 object CompilerSourceGenerator {
   type CompilerSourcesAvailable = (Iterable[CompilerSource[Any]]) => Unit
-  type CompilerSourceGeneration = CompilerSourceGenerator[URI, CompilerSource[URI]]
+  type CompilerSourceGeneration = CompilerSourceGenerator[URI, CompilerSource[URI], CompilerContext]
 
   @inline def fromStrings(strings: String*): CompilerSourceGeneration =
     fromStrings(strings)
@@ -63,8 +63,8 @@ object CompilerSourceGenerator {
 //  }
 }
 
-sealed class CompilerSourceGenerator[TSource >: URI, TCompilerSource >: CompilerSource[TSource]](
+sealed class CompilerSourceGenerator[TSource >: URI, TCompilerSource >: CompilerSource[TSource], TContext >: CompilerContext](
   override val initial: Iterable[TCompilerSource]
-) extends Generator[TCompilerSource] {
+) extends Generator[TCompilerSource, TContext] {
 
 }

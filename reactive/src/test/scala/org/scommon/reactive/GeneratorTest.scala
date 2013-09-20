@@ -66,8 +66,9 @@ class GeneratorTest extends FunSuite
   test("Generator API works correctly") {
     import Generator._
     var received = false
-    val right_associativity: Junction = {
-      x: Any =>
+
+    val right_associativity: Junction[Nothing] = {
+      (x: Any) =>
         if (received)
           fail("Should only be called once when no extra data has been pushed.")
         received = true
@@ -77,7 +78,7 @@ class GeneratorTest extends FunSuite
     received should be(true)
 
     received = false
-    val left_associativity: Junction =
+    val left_associativity: Junction[Nothing] =
       (Seq(1, 2, 3) ~ Seq("x", "y", "z") |>> waitForAll) >> { x: Any =>
         if (received)
           fail("Should only be called once when no extra data has been pushed.")
@@ -92,10 +93,10 @@ class GeneratorTest extends FunSuite
       (left_associativity - waitForAll).begin
     }
 
-    val g1: Generator[Int] = Seq(1, 2, 3)
-    val g2: Generator[String] = Seq("x", "y", "z")
+    val g1: Generator[Int, Nothing] = Seq(1, 2, 3)
+    val g2: Generator[String, Nothing] = Seq("x", "y", "z")
 
-    val embrace1 = (g1 ~ g2 |>> waitForAll) >> (x => ???)
+    val embrace1 = (g1 ~ g2 |>> waitForAll) >> { x: Any => ??? }
 
     val embrace1_missing = embrace1 - waitForAll - g1 - g2
     embrace1_missing.associated_barriers should be(Seq())
@@ -119,22 +120,22 @@ class GeneratorTest extends FunSuite
     var junction_passes_1, junction_passes_2 = 4
 
     val c1 = Seq(1, 2, 3) ~ Seq("x", "y", "z")
-    val c2 = c1 |>> ((x: Received) => {
+    val c2 = c1 |>> ((_, x: Received) => {
       x.data should be(pass_filter_1.dequeue.expected)
       //println(s"filter ${x.data} \n");
       true
     })
     val c3 = c2 ~ Seq("a") ~ Seq("b")
-    val c4 = c3 |>> ((x: Received) => {
+    val c4 = c3 |>> ((_, x: Received) => {
       x.data should be(pass_filter_2.dequeue.expected)
       //println(s"second filter ${x.data} \n")
       true
     })
-    val c5 = c4 >> (x => {
+    val c5 = c4 >> ((_, x) => {
       junction_passes_1 -= 1
       //println(s"junction: $x \n")
     })
-    val c6 = c5 >> ((x:Any) => {
+    val c6 = c5 >> ((_, x:Any) => {
       junction_passes_2 -= 1
       //println(s"x: $x")
     })

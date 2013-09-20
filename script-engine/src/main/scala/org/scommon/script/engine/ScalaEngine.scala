@@ -15,7 +15,7 @@ import scala.language.implicitConversions
 import java.nio.file.LinkOption
 
 
-object ScalaEngine extends EngineFactory[Scala] {
+private[engine] object ScalaEngine extends EngineFactory[Scala] {
   val instance = this
 
   lazy val details = new EngineDetails[Scala] {
@@ -26,15 +26,15 @@ object ScalaEngine extends EngineFactory[Scala] {
     val defaultSettings = ScalaCompilerSettings()
   }
 
-  def newEngine[U >: Scala <: CompilerSpecificSettings, T](settings: CompilerSettings[U], generator: Generator[CompilerSource[T]]): Engine[Scala] =
+  def newEngine[U >: Scala <: CompilerSpecificSettings, T](settings: CompilerSettings[U], generator: Generator[CompilerSource[T], CompilerContext]): Engine[Scala] =
     new ScalaEngine[T](details, settings.asInstanceOf[CompilerSettings[Scala]], generator)
 }
 
 
-class ScalaEngine[T](
+private[engine] class ScalaEngine[T](
   val details: EngineDetails[Scala],
   val settings: CompilerSettings[Scala],
-  generator: Generator[CompilerSource[T]])
+  generator: Generator[CompilerSource[T], CompilerContext])
 extends Engine[Scala] {
   import Generator._
 
@@ -97,7 +97,7 @@ extends Engine[Scala] {
 
   private[this] val pipeline = ((
     generator
-    |>> waitForAll)
+    |>> waitForAllWithContext[CompilerContext])
     >> lift_source
     >> process_source
   ).begin
@@ -106,12 +106,13 @@ extends Engine[Scala] {
     pipeline.cancel()
 
   //Extracts the CompilerSource instances from the junction data (which is what's processing the generator's
-  //generated values). The reactive library gathers
-  private[this] def lift_source: PartialFunction[Any, Any] = {
-    case Seq(Some(t @ Seq(_*)), _*) => t
+  //generated values). We gather all data from all generators and when they all arrive, the gate opens and
+  //data begins flowing to junctions.
+  private[this] def lift_source: PartialFunction[(Option[CompilerContext], Any), (CompilerContext, Seq[Any])] = {
+    case ((Some(c: CompilerContext), Seq(Some(t @ Seq(_*)), _*))) => (c, t)
   }
 
-  private[this] def process_source: PartialFunction[Any, Any] = { case (sources: Seq[CompilerSource[URI]] @unchecked) =>
+  private[this] def process_source: PartialFunction[Any, Unit] = { case ((context: CompilerContext, (sources: Seq[CompilerSource[URI]] @unchecked))) =>
     sources.foreach(x => println(s"Compiling ${x.source}"))
     compiler.compile(sources)
 

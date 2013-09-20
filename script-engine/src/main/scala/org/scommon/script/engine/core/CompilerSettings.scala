@@ -4,7 +4,7 @@ import java.nio.file.{LinkOption, Paths, Path}
 import org.scommon.io.{PathUtil}
 import org.scommon.reflect._
 
-trait CompilerSettings[+TSpecific <: CompilerSpecificSettings] extends StandardFieldMirror {
+trait CompilerSettings[+TSpecific <: CompilerSpecificSettings] extends StandardFieldMirror with CompilerContext {
   def specific: TSpecific
 
   def fields = Iterable(
