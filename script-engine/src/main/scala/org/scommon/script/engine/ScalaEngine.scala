@@ -38,62 +38,8 @@ private[engine] class ScalaEngine[T](
 extends Engine[Scala] {
   import Generator._
 
-  private[this] val output_dir: nsc.io.AbstractFile = {
-    if (settings.inMemory) {
-      //Save class files to a virtual directory in memory
-      new nsc.io.VirtualDirectory("mem:///stream", None)
-    } else {
-      //Save them to the file system.
-      val absolute_path = settings.outputDirectory.toRealPath(LinkOption.NOFOLLOW_LINKS).toFile
-      new PlainDirectory(new Directory(absolute_path))
-    }
-  }
-
-  private[this] val compiler_settings = {
-    val s = ScalaCompilerSettings.toNscSettings(settings)
-    s.outputDirs.setSingleOutput(output_dir)
-    s
-  }
-
-  private[this] val reporter: nsc.reporters.Reporter = new nsc.reporters.AbstractReporter() {
-    val settings = compiler_settings
-
-    def displayPrompt(): Unit = {}
-
-    def display(pos: SPosition, msg: String, severity: Severity) {
-      val m: String = SPosition.formatMessage(pos, msg, true)
-
-      val s: CompilerMessageSeverity.EnumVal =
-        if (severity == ERROR)
-          CompilerMessageSeverity.Error
-        else if (severity == WARNING)
-          CompilerMessageSeverity.Warning
-        else if (severity == INFO)
-          CompilerMessageSeverity.Information
-        else
-          CompilerMessageSeverity.Unknown
-
-      val p: Position =
-        if (pos eq null)
-          UnknownPosition
-        else {
-          val pos_in =
-            if (pos.isDefined)
-              pos.inUltimateSource(pos.source)
-            else
-              pos
-          StandardPosition(pos_in.line, pos_in.column)
-        }
-
-      val standard_msg = StandardCompilerMessage(s, m, p)
-      ScalaEngine.this.settings.handlers.messageReceived(ScalaEngine.this, standard_msg)
-    }
-  }
-
-  private[this] val compiler = new ScalaCompiler(compiler_settings, reporter, Seq(new FilterForClassesImplementingTrait()) ++ settings.specific.phaseInterceptors, Some(new CompilerProgressListener {
-    def progressUpdate(update: CompilerProgress):Unit =
-      settings.handlers.progressUpdate(ScalaEngine.this, update)
-  }))
+  private[this] val translated_settings =
+    ScalaCompilerSettings.toNscSettings(settings)
 
   private[this] val pipeline = ((
     generator
@@ -114,6 +60,30 @@ extends Engine[Scala] {
 
   private[this] def process_source: PartialFunction[Any, Unit] = { case ((context: CompilerContext, (sources: Seq[CompilerSource[_]] @unchecked))) =>
     sources.foreach(x => println(s"Compiling ${x.source}"))
+
+    val output_dir: nsc.io.AbstractFile = {
+      if (settings.inMemory) {
+        //Save class files to a virtual directory in memory
+        new nsc.io.VirtualDirectory("mem:///stream", None)
+      } else {
+        //Save them to the file system.
+        val absolute_path = settings.outputDirectory.toRealPath(LinkOption.NOFOLLOW_LINKS).toFile
+        new PlainDirectory(new Directory(absolute_path))
+      }
+    }
+
+    val compiler_settings = {
+      val s = translated_settings.copy()
+      s.outputDirs.setSingleOutput(output_dir)
+      s
+    }
+
+    val compiler = ScalaCompiler(compiler_settings, Seq(new FilterForClassesImplementingTrait()) ++ settings.specific.phaseInterceptors) { msg =>
+      context.handlers.messageReceived(this, msg)
+    } { progress =>
+      context.handlers.progressUpdate(this, progress)
+    }
+
     compiler.compile(sources)
 
     println("Compilation complete")

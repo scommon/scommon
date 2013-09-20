@@ -2,10 +2,10 @@ package org.scommon.script.engine
 
 import _root_.scala.tools.nsc
 import _root_.scala.reflect.io.NoAbstractFile
+import _root_.scala.reflect.internal.util.{Position => SPosition}
 
 import org.scommon.script.engine.core._
 import org.scommon.core.Version
-import org.scommon.script.engine.core.CompilerProgress
 
 import java.io.IOException
 import java.nio.charset.Charset
@@ -18,6 +18,11 @@ object ScalaCompiler {
   val name = "scala-compiler"
   val title = "Scala Compiler"
   val version = Version(_root_.scala.util.Properties.versionNumberString)
+
+  def apply(settings: nsc.Settings, intercepts: Iterable[ScalaPhaseIntercept])
+           (fnMessageReceived: CompilerMessage => Unit)
+           (fnProgressUpdate: CompilerProgress => Unit) =
+    new ScalaCompiler(settings, intercepts, fnMessageReceived, fnProgressUpdate)
 
   implicit def toSubComponent(intercept: ScalaPhaseIntercept, providedGlobal: nsc.Global): nsc.SubComponent = new nsc.SubComponent { self =>
     import providedGlobal._
@@ -82,11 +87,11 @@ object ScalaCompiler {
     }
 }
 
-class ScalaCompiler(
+sealed class ScalaCompiler(
   val settings: nsc.Settings,
-  val reporter: nsc.reporters.Reporter,
   val intercepts: Iterable[ScalaPhaseIntercept],
-      progressListener: Option[CompilerProgressListener] = None
+  fnMessageReceived: CompilerMessage => Unit,
+  fnProgressUpdate: CompilerProgress => Unit
 ) extends core.Compiler
 {
   import ScalaCompiler._
@@ -94,6 +99,40 @@ class ScalaCompiler(
   val name    = ScalaCompiler.name
   val title   = ScalaCompiler.title
   val version = ScalaCompiler.version
+
+  private[this] val reporter: nsc.reporters.Reporter = new nsc.reporters.AbstractReporter() {
+    val settings = ScalaCompiler.this.settings
+
+    def displayPrompt(): Unit = {}
+
+    def display(pos: SPosition, msg: String, severity: Severity) {
+      val m: String = SPosition.formatMessage(pos, msg, true)
+
+      val s: CompilerMessageSeverity.EnumVal =
+        if (severity == ERROR)
+          CompilerMessageSeverity.Error
+        else if (severity == WARNING)
+          CompilerMessageSeverity.Warning
+        else if (severity == INFO)
+          CompilerMessageSeverity.Information
+        else
+          CompilerMessageSeverity.Unknown
+
+      val p: Position =
+        if (pos eq null)
+          UnknownPosition
+        else {
+          val pos_in =
+            if (pos.isDefined)
+              pos.inUltimateSource(pos.source)
+            else
+              pos
+          StandardPosition(pos_in.line, pos_in.column)
+        }
+
+      fnMessageReceived(StandardCompilerMessage(s, m, p))
+    }
+  }
 
   private[this] val compiler =
     new nsc.Global(settings, reporter) {
@@ -120,14 +159,12 @@ class ScalaCompiler(
       super.progress(current, total)
       if (current != lastPhase) {
         lastPhase = current
-        if (progressListener.isDefined) {
-          progressListener.get.progressUpdate(StandardCompilerProgress(
-            phase           = currentPhase,
-            phaseIndex      = current,
-            totalPhaseCount = total,
-            progress        = math.floor((current.toDouble / total.toDouble) * 100.0D) / 100.0D
-          ))
-        }
+        fnProgressUpdate(StandardCompilerProgress(
+          phase           = currentPhase,
+          phaseIndex      = current,
+          totalPhaseCount = total,
+          progress        = math.floor((current.toDouble / total.toDouble) * 100.0D) / 100.0D
+        ))
       }
     }
   }
