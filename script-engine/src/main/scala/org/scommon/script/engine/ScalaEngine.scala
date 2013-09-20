@@ -112,7 +112,7 @@ extends Engine[Scala] {
     case ((Some(c: CompilerContext), Seq(Some(t @ Seq(_*)), _*))) => (c, t)
   }
 
-  private[this] def process_source: PartialFunction[Any, Unit] = { case ((context: CompilerContext, (sources: Seq[CompilerSource[URI]] @unchecked))) =>
+  private[this] def process_source: PartialFunction[Any, Unit] = { case ((context: CompilerContext, (sources: Seq[CompilerSource[_]] @unchecked))) =>
     sources.foreach(x => println(s"Compiling ${x.source}"))
     compiler.compile(sources)
 
