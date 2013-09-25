@@ -72,8 +72,11 @@ package object core {
    * @tparam A Type of resource to provide to the body.
    * @return Return nothing.
    */
-  def using[A <: java.io.Closeable](closeable: UsingMagnet[A])(body: A => Unit):Unit =
-    closeable.foreach(body)
+  def using[A <: java.io.Closeable, B](closeable: UsingMagnet[A])(body: A => B):B =
+    if (closeable.isDefined)
+      closeable.process(body)
+    else
+      throw new IllegalArgumentException(s"Closeable must be defined")
 
   /**
    * Accepts [[org.scommon.core.UsingMagnet]] instances and provides automatic
