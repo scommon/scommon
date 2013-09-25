@@ -51,7 +51,7 @@ public class SandboxMonitorDaemon implements Runnable {
 	private final SandboxServiceImpl sandboxService;
 	private final ConcurrentLinkedQueue<SandboxMonitoredThread> monitorQueue;
 
-	private long startTime;
+	private long startTime = TimeUnit.MILLISECONDS.convert(System.nanoTime(), TimeUnit.NANOSECONDS);
 
 	private long checkInterval;
 
@@ -101,7 +101,7 @@ public class SandboxMonitorDaemon implements Runnable {
 			if(cpuTime > TimeUnit.NANOSECONDS.convert(context.getMaximumRunTime(), context.getMaximumRunTimeUnit()))
 				suspend(monitor, new SandboxedTaskKilledException("killed task as maxmimum runtime was exceeded"));
 	 	} else {
-	 		if(System.currentTimeMillis() - startTime > TimeUnit.MILLISECONDS.convert(context.getMaximumRunTime(), context.getMaximumRunTimeUnit()))
+	 		if(TimeUnit.MILLISECONDS.convert(System.nanoTime(), TimeUnit.NANOSECONDS) - monitor.getStartTime() > TimeUnit.MILLISECONDS.convert(context.getMaximumRunTime(), context.getMaximumRunTimeUnit()))
 	 			suspend(monitor, new SandboxedTaskKilledException("killed task as maxmimum runtime was exceeded"));
 	 	}
 	}

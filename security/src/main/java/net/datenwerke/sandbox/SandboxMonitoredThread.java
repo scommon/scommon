@@ -24,6 +24,7 @@
 package net.datenwerke.sandbox;
 
 
+import java.util.concurrent.TimeUnit;
 
 /**
  * Bean containing all that is to know about a sandboxed thread.
@@ -44,7 +45,7 @@ public class SandboxMonitoredThread {
 		this.monitoredThread = monitoredThread;
 		this.context = context;
 		
-		startTime = System.currentTimeMillis();
+		startTime = TimeUnit.MILLISECONDS.convert(System.nanoTime(), TimeUnit.NANOSECONDS);
 	}
 	
 	public SandboxedThread getMonitoredThread() {
