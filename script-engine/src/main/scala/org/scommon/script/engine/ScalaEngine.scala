@@ -5,14 +5,13 @@ import _root_.scala.collection._
 import scala.reflect.io.{Directory, PlainDirectory}
 import scala.reflect.internal.util.{NoPosition => SNoPosition, Position => SPosition}
 
-import java.net.URI
+import java.nio.file.LinkOption
 
 import org.scommon.core._
 import org.scommon.reactive._
 import org.scommon.script.engine.core._
 
 import scala.language.implicitConversions
-import java.nio.file.LinkOption
 
 
 private[engine] object ScalaEngine extends EngineFactory[Scala] {
@@ -111,12 +110,47 @@ extends Engine[Scala, T] {
     override val runsAfterPhases     = List(CompilerPhase.Typer)
     override val runsRightAfterPhase = Some(CompilerPhase.Pickler)
 
-    /** Called when a class or module is found. */
-    private[this] def callback(global: nsc.Global)(t: global.Type) = {
-      import global._
+  trait Foo { self: Compiler with Serializable =>
+  }
 
-      println(s"*********************** FOUND: ${t.toLongString} ${t.baseClasses}") //${t <:< typeOf[MyTestTrait]}
+    import scala.reflect.runtime.universe._
+
+    trait TypeFilter[T] {
+      def tag: TypeTag[T]
     }
+
+    def createFilter[T: TypeTag] = new TypeFilter[T] {
+      val tag = implicitly[TypeTag[T]]
+    }
+
+    def isThisASubtype[T](filter: TypeFilter[T], global: nsc.Global)(s: global.Symbol, t: global.Type) = {
+      import global._
+      val t3 = filter.tag.in(global.rootMirror).tpe
+      val is_subtype = t <:< t3
+      println(s"${t.toString} IS SUBTYPE: ${is_subtype}")
+    }
+
+    /** Called when a class or module is found. */
+    private[this] def callback(global: nsc.Global)(s: global.Symbol, t: global.Type) = {
+      val filter = createFilter[AnyRef]
+
+      isThisASubtype(filter, global)(s, t)
+//      import scala.reflect.runtime.universe._
+//      val mirror = runtimeMirror(Thread.currentThread().getContextClassLoader())
+//
+//      val x:java.lang.Thread = new Thread()
+//      val t1: scala.reflect.runtime.universe.type#Type = t
+//      val t2 = scala.reflect.runtime.universe.typeOf[String]
+//
+//      val is_subtype = t1 <:< t2
+//      println(s"${t1.toString} IS SUBTYPE: ${is_subtype}")
+    }
+
+//    private[this] def callbackWithType(t: scala.reflect.runtime.universe.type#Type) = {
+//      import org.scommon.reflect._
+//      val a = "".typeOf
+//      println(s"*********************** FOUND WITH TYPE: ${t.toLongString} ${t.baseClasses}") //${t <:< typeOf[MyTestTrait]}
+//    }
 
     def intercept(global: nsc.Global)(unit: global.CompilationUnit): Unit = {
       import global._
@@ -150,7 +184,7 @@ extends Engine[Scala, T] {
           tree match {
             case _: ClassDef | _: ModuleDef
               if isDefined(tree.symbol) && (isClass(tree.symbol) || isModule(tree.symbol)) =>
-              callback(global)(tree.symbol.typeOfThis)
+              callback(global)(tree.symbol, tree.symbol.typeOfThis)
             case _ =>
           }
           super.traverse(tree)
