@@ -43,6 +43,7 @@ final public class SandboxSecurityManager extends SecurityManager {
 	
 	private final ThreadLocal<Boolean> isInCheck = new ThreadLocal<Boolean>();
 	private final ThreadLocal<Boolean> debug = new ThreadLocal<Boolean>();
+	private final ThreadGroup threadGroup;
 	private final SandboxService sandboxingService;
 	private boolean codesourceSecurityChecks;
 	
@@ -51,6 +52,14 @@ final public class SandboxSecurityManager extends SecurityManager {
 	private SandboxSecurityManager(SandboxService service) {
 		super();
 		this.sandboxingService = service;
+		this.threadGroup = new ThreadGroup("sandbox") {
+			@Override
+			public void uncaughtException(Thread t, Throwable e) {
+				final SandboxContext context = contextHolder.get();
+				if (context != null)
+					context.handleUncaughtException(t, e);
+			}
+		};
 	}	
 	
 	static SandboxSecurityManager newInstance(SandboxService service){
@@ -230,6 +239,8 @@ final public class SandboxSecurityManager extends SecurityManager {
 	public boolean isCodesourceSecurityChecks() {
 		return codesourceSecurityChecks;
 	}
-	
-		
+
+	public ThreadGroup getThreadGroup() {
+		return threadGroup;
+	}
 }

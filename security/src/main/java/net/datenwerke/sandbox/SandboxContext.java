@@ -155,6 +155,8 @@ public class SandboxContext implements Serializable {
 	private boolean bypassClassAccessChecks = false;
 	private boolean bypassPermissionAccessChecks = false;
 	private boolean bypassPackageAccessChecks = true;
+
+	private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = null;
 	
 	/**
 	 * Initializes a new context.
@@ -377,6 +379,19 @@ public class SandboxContext implements Serializable {
 	 */
 	public SandboxLoaderEnhancer getLoaderEnhancer() {
 		return loaderEnhancer;
+	}
+
+	public Thread.UncaughtExceptionHandler getUncaughtExceptionHandler() {
+		return uncaughtExceptionHandler;
+	}
+
+	public void setUncaughtExceptionHandler(Thread.UncaughtExceptionHandler uncaughtExceptionHandler) {
+		this.uncaughtExceptionHandler = uncaughtExceptionHandler;
+	}
+
+	public void handleUncaughtException(Thread t, Throwable e) {
+		if (uncaughtExceptionHandler != null)
+			uncaughtExceptionHandler.uncaughtException(t, e);
 	}
 	
 	/**
