@@ -26,6 +26,7 @@ package net.datenwerke.sandbox;
 import java.io.File;
 import java.io.Serializable;
 import java.net.MalformedURLException;
+import java.net.SocketPermission;
 import java.net.URL;
 import java.security.AllPermission;
 import java.security.Permission;
@@ -148,7 +149,9 @@ public class SandboxContext implements Serializable {
 	
 	private Collection<FilePermission> fileDeletePermissions = new HashSet<FilePermission>();
 	private Collection<FilePermission> fileDeleteDenials = new HashSet<FilePermission>();
-	
+
+	private Collection<SocketPermission> socketPermissions = new HashSet<SocketPermission>();
+
 	private Collection<URL> whitelistedJars = new HashSet<URL>();
 	
 	private boolean passAll = false;
@@ -768,6 +771,10 @@ public class SandboxContext implements Serializable {
 			break;
 		}
 	}
+
+	public void addSocketPermission(SocketPermission perm) {
+		socketPermissions.add(perm);
+	}
 	
 	/**
 	 * 
@@ -937,6 +944,10 @@ public class SandboxContext implements Serializable {
 				return checkFileDeleteAction(perm.getName());
 			}
 		}
+
+        if (SocketPermission.class.equals(perm.getClass())) {
+            return checkSocket((SocketPermission)perm);
+        }
 		
 		/* general checks */
 		Collection<SecurityPermission> whitelistedPermissions = permissionWhitelist.get(perm.getClass().getName());
@@ -964,6 +975,14 @@ public class SandboxContext implements Serializable {
 
 		return true;
 	}
+
+    protected boolean checkSocket(SocketPermission perm) {
+        for(SocketPermission sp : socketPermissions) {
+            if (sp.implies(perm))
+                return true;
+        }
+        return false;
+    }
 
 	protected boolean checkFileReadAction(String name) {
 		return checkFileAction(name, fileReadPermissions, fileReadDenials);
@@ -1276,6 +1295,11 @@ public class SandboxContext implements Serializable {
 		for(FilePermission perm : restrictSet.fileDeleteDenials)
 			fileDeleteDenials.add(perm.clone());
 	}
+
+	protected void mergeSocketPermissions(SandboxContext restrictSet) {
+		for(SocketPermission perm : restrictSet.socketPermissions)
+			socketPermissions.add(new SocketPermission(perm.getName(), perm.getActions()));
+	}
 	
 	/**
 	 * Merges the configuration for the application loader.
@@ -1332,6 +1356,7 @@ public class SandboxContext implements Serializable {
 		mergePackageRestrictions(context);
 		mergeFilePermissions(context);
 		mergePermissions(context);
+		mergeSocketPermissions(context);
 		try{
 			mergeApplicationLoaderConfiguration(context);
 			mergeWhitelistedJars(context);
@@ -1356,6 +1381,7 @@ public class SandboxContext implements Serializable {
 		maximumRunTimeUnit = context.maximumRunTimeUnit;
 		maximumRuntimeMode = context.maximumRuntimeMode;
 		maximumStackDepth = context.maximumStackDepth;
+        uncaughtExceptionHandler = context.uncaughtExceptionHandler;
 	}
 
 	@Override

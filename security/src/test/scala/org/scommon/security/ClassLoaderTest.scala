@@ -8,48 +8,73 @@ import net.datenwerke.sandbox.{SandboxedEnvironment, SandboxContext, SandboxServ
 import net.datenwerke.sandbox.SandboxContext.{Mode, AccessType}
 import java.util.PropertyPermission
 import net.datenwerke.sandbox.permissions.SecurityPermission
-import java.io.Serializable
+import java.io.{InputStreamReader, BufferedReader, Serializable}
+
+import org.scommon.security.Sandbox._
+import com.google.inject.Guice
+import com.typesafe.config.ConfigFactory
+import java.net._
+import scala.Some
 
 
 @RunWith(classOf[JUnitRunner])
 class ClassLoaderTest extends FunSuite
 with ShouldMatchers
 with SeveredStackTraces {
-  class Sandboxed() {
-    def run(): Unit = {
-      val service = SandboxServiceImpl.initLocalSandboxService()
-      val context = Sandbox.default
-
-      val result = service.runSandboxed(classOf[MySandboxedEnvironment], context, "some value")
-
-      println(s"GOT: ${result.get()}")
-    }
-  }
-
   test("foo") {
-    val default = Sandbox.default
-    new Sandboxed().run()
-  }
-}
+    val profile = Sandbox.defaultProfile
+    //profile.context.setMaximumRunTime(3000L)
+    //profile.context.addSecurityPermission()
+    //profile.context.setDebug(false)
+    //profile.context.setRunInThread(false)
 
-private[security] class MySandboxedEnvironment(value: String) extends SandboxedEnvironment[Boolean] {
-  def execute(): Boolean = {
-    try {
-      import org.scommon.core._
-      val c = scala.collection.mutable.LinkedHashSet("test")
-      println(c.head.isNullOrEmpty)
+    val sandbox = Sandbox(profile)
 
-      println(scala.util.Random.nextDouble())
-      //Untrusted code
-      //System.exit(-1)
-      println(System.getProperties)
-      //throw new IllegalArgumentException()
+    val result = sandbox.run {
+      //println(s"${System.getProperties}")
+      //System.exit(0)
+      //println(s"${System.getProperty("os.vendor")}")
 
-      true
-    } catch {
-      case t:Throwable =>
-        t.printStackTrace()
-        false
+//      val h = new URL("http://www.google.com").openConnection()
+//      val br = new BufferedReader(new InputStreamReader(h.getInputStream()))
+//      println(br.readLine())
+//      br.close()
+
+//      //Create a socket
+//      val s = new Socket("google.com", 80)
+//      s.getOutputStream().write("GET / HTTP/1.0\n\n".getBytes("ASCII"))
+//      val is = s.getInputStream()
+//      is.read()
+//      is.close()
+
+//      //Can listen on a socket
+//      val listen_sock = new ServerSocket(0)
+//      println(s"Listening on ${listen_sock.getLocalPort()}")
+//      val sock = listen_sock.accept()
+//      val os = sock.getOutputStream()
+//      val is = sock.getInputStream()
+//      val echo = is.read()
+//      os.write("hello ".getBytes("ASCII"))
+//      os.write(echo)
+//      is.close()
+
+      //Can create a new thread.
+      //Without a specified thread group, it should use the security manager's.
+      //This will cause its uncaught exception handler to be used. But if you
+      //specify your own thread group, our uncaught exception handler will not
+      //be used.
+      val t = new Thread(new Runnable {
+        def run() {
+          throw new IllegalStateException()
+          for(i <- 0 to 20) {
+            println(s"$i...")
+            Thread.sleep(1000L)
+          }
+        }
+      })
+      t.start()
+      t.join()
     }
+    println(result)
   }
 }
