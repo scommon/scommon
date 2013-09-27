@@ -1,5 +1,7 @@
 package org.scommon.script.engine.core
 
+import scala.collection._
+
 import java.nio.file.{LinkOption, Paths, Path}
 import org.scommon.io.{PathUtil}
 import org.scommon.reflect._
@@ -17,7 +19,7 @@ trait CompilerSettings[+TSpecific <: CompilerSpecificSettings] extends StandardF
     , Field.withDefault("bootClassPath", "Boot Classpath", "The classpath used by the compiler for the bootstrap class loader.", bootClassPath)
     , Field.withDefault("customClassPath", "Custom Classpath", "Additional classpath that will be prepended to the standard classpath.", customClassPath)
 
-    //Deliberately omit specific, handlers, and relativeCustomClassPath since they're not meant to be set directly.
+    //Deliberately omit specific, handlers, typeFilters, and relativeCustomClassPath since they're not meant to be set directly.
   )
 
   def handlers: CompilerEventHandlers
@@ -30,6 +32,7 @@ trait CompilerSettings[+TSpecific <: CompilerSpecificSettings] extends StandardF
   def classPath: Iterable[String]
   def bootClassPath: Iterable[String]
   def customClassPath: Iterable[String]
+  def typeFilters: Iterable[CompilerTypeFilter]
 
   final def relativeCustomClassPath: Iterable[String] = {
     val resolved = (
@@ -58,16 +61,33 @@ trait CompilerSettings[+TSpecific <: CompilerSpecificSettings] extends StandardF
 }
 
 case class StandardCompilerSettings[+S <: CompilerSpecificSettings](
-    var handlers          : StandardCompilerEventHandlers = StandardCompilerEventHandlers()
-  , var inMemory          : Boolean                = true
-  , var relativeDirectory : Path                   = Paths.get(".").toRealPath(LinkOption.NOFOLLOW_LINKS).toAbsolutePath
-  , var outputDirectory   : Path                   = Paths.get(PathUtil.querySystemUserTempDirectory)
-  , var options           : Iterable[String]       = Iterable.empty
-  , var temporaryDirectory: Path                   = Paths.get(PathUtil.querySystemUserTempDirectory)
-  , var classPath         : Iterable[String]       = Environment.determineFullUserClassPath()
-  , var bootClassPath     : Iterable[String]       = Environment.determineFullUserClassPath()
-  , var customClassPath   : Iterable[String]       = Iterable.empty
+    var handlers          : StandardCompilerEventHandlers                  = StandardCompilerEventHandlers()
+  , var inMemory          : Boolean                                        = true
+  , var relativeDirectory : Path                                           = Paths.get(".").toRealPath(LinkOption.NOFOLLOW_LINKS).toAbsolutePath
+  , var outputDirectory   : Path                                           = Paths.get(PathUtil.querySystemUserTempDirectory)
+  , var options           : Iterable[String]                               = Iterable.empty
+  , var temporaryDirectory: Path                                           = Paths.get(PathUtil.querySystemUserTempDirectory)
+  , var classPath         : Iterable[String]                               = Environment.determineFullUserClassPath()
+  , var bootClassPath     : Iterable[String]                               = Environment.determineFullUserClassPath()
+  , var customClassPath   : Iterable[String]                               = Iterable.empty
+  ,     typeFilters       : mutable.LinkedHashSet[CompilerTypeFilter]      = mutable.LinkedHashSet[CompilerTypeFilter]()
   ,     specific          : S
 ) extends CompilerSettings[S] {
+  import scala.reflect.runtime.universe._
+
+  def clearTypeFilters(): this.type = {
+    typeFilters.clear()
+    this
+  }
+
+  def withTypeFilter[T : TypeTag]: this.type = {
+    typeFilters += CompilerTypeFilter[T]
+    this
+  }
+
+  def withTypeFilter(typeFilter: CompilerTypeFilter): this.type = {
+    typeFilters += typeFilter
+    this
+  }
 
 }

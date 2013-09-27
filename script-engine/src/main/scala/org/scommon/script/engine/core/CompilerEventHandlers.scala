@@ -3,6 +3,7 @@ package org.scommon.script.engine.core
 object CompilerEventHandlers {
   type MessageReceived = (Engine[CompilerSpecificSettings, Any], CompilerMessage) => Unit
   type ProgressUpdate = (Engine[CompilerSpecificSettings, Any], CompilerProgress) => Unit
+  type SourceCompiled = (Engine[CompilerSpecificSettings, Any], CompileResult) => Unit
 
   val DEFAULT_MESSAGE_RECEIVED: MessageReceived = (_, msg) => {
     msg.severity match {
@@ -12,6 +13,10 @@ object CompilerEventHandlers {
   }
 
   val DEFAULT_PROGRESS_UPDATE: ProgressUpdate = (_, progress) => {
+    //Do nothing
+  }
+
+  val DEFAULT_SOURCE_COMPILED: SourceCompiled = (_, result) => {
     //Do nothing
   }
 }
@@ -24,9 +29,11 @@ import CompilerEventHandlers._
 trait CompilerEventHandlers {
   def messageReceived: MessageReceived
   def progressUpdate: ProgressUpdate
+  def sourceCompiled: SourceCompiled
 }
 
 sealed case class StandardCompilerEventHandlers(
     var messageReceived: MessageReceived = DEFAULT_MESSAGE_RECEIVED
-  , var progressUpdate: ProgressUpdate = DEFAULT_PROGRESS_UPDATE
+  , var progressUpdate: ProgressUpdate   = DEFAULT_PROGRESS_UPDATE
+  , var sourceCompiled: SourceCompiled   = DEFAULT_SOURCE_COMPILED
 ) extends CompilerEventHandlers

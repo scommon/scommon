@@ -77,7 +77,10 @@ extends Engine[Scala, T] {
       s
     }
 
-    val compiler = ScalaCompiler(compiler_settings, Seq(new FilterForClassesImplementingTrait()) ++ settings.specific.phaseInterceptors) { msg =>
+    val scala_type_filter =
+      new ScalaTypeFilter(settings.typeFilters)
+
+    val compiler = ScalaCompiler(compiler_settings, Seq(scala_type_filter) ++ settings.specific.phaseInterceptors) { msg =>
       context.handlers.messageReceived(this, msg)
     } { progress =>
       context.handlers.progressUpdate(this, progress)
@@ -85,7 +88,14 @@ extends Engine[Scala, T] {
 
     compiler.compile(sources)
 
-    println("Compilation complete")
+    val discovered_types: CompileResult.DiscoveredTypeMap = {
+      for {
+        (name, types) <- scala_type_filter.discovered
+        type_filter <- scala_type_filter.typeFilters
+
+        if type_filter.name == name
+      } yield (type_filter, types.toIterable)
+    }.toMap withDefaultValue Iterable()
 
     val s = mutable.Stack[nsc.io.AbstractFile]()
     s.push(output_dir)
@@ -102,61 +112,37 @@ extends Engine[Scala, T] {
         }
       }
     }
+
+    //Notify everyone that we've completed compilation.
+    settings.handlers.sourceCompiled(this, CompileResult(discovered_types))
   }
 
-  private[this] class FilterForClassesImplementingTrait extends ScalaPhaseIntercept {
-    val name = "filter-classes-implementing-trait"
+  private[this] class ScalaTypeFilter(val typeFilters: Iterable[CompilerTypeFilter]) extends ScalaPhaseIntercept {
+    require(typeFilters.isTraversableAgain, "typeFilters must be iterable more than once")
+
+    val name = "filter-for-types-implementing-trait"
     override val runsBeforePhases    = List(CompilerPhase.Erasure)
     override val runsAfterPhases     = List(CompilerPhase.Typer)
     override val runsRightAfterPhase = Some(CompilerPhase.Pickler)
 
-  trait Foo { self: Compiler with Serializable =>
-  }
-
-    import scala.reflect.runtime.universe._
-
-    trait TypeFilter[T] {
-      def tag: TypeTag[T]
-    }
-
-    def createFilter[T: TypeTag] = new TypeFilter[T] {
-      val tag = implicitly[TypeTag[T]]
-    }
-
-    def isThisASubtype[T](filter: TypeFilter[T], global: nsc.Global)(s: global.Symbol, t: global.Type) = {
-      import global._
-      val t3 = filter.tag.in(global.rootMirror).tpe
-      val is_subtype = t <:< t3
-      println(s"${t.toString} IS SUBTYPE: ${is_subtype}")
-    }
+    val discovered = mutable.Map[String, mutable.LinkedHashSet[String]]() withDefaultValue mutable.LinkedHashSet()
 
     /** Called when a class or module is found. */
-    private[this] def callback(global: nsc.Global)(s: global.Symbol, t: global.Type) = {
-      val filter = createFilter[AnyRef]
+    def typeDiscovered(global: nsc.Global)(s: global.Symbol, t: global.Type) = {
+      for {
+        filter <- typeFilters
+        filter_type_in_global_universe = filter.tag.in(global.rootMirror).tpe
 
-      isThisASubtype(filter, global)(s, t)
-//      import scala.reflect.runtime.universe._
-//      val mirror = runtimeMirror(Thread.currentThread().getContextClassLoader())
-//
-//      val x:java.lang.Thread = new Thread()
-//      val t1: scala.reflect.runtime.universe.type#Type = t
-//      val t2 = scala.reflect.runtime.universe.typeOf[String]
-//
-//      val is_subtype = t1 <:< t2
-//      println(s"${t1.toString} IS SUBTYPE: ${is_subtype}")
+        is_t_subtype_wrt_filter = t <:< filter_type_in_global_universe
+        if is_t_subtype_wrt_filter
+      }
+        discovered(filter.name) = (discovered(filter.name) += t.toLongString)
     }
-
-//    private[this] def callbackWithType(t: scala.reflect.runtime.universe.type#Type) = {
-//      import org.scommon.reflect._
-//      val a = "".typeOf
-//      println(s"*********************** FOUND WITH TYPE: ${t.toLongString} ${t.baseClasses}") //${t <:< typeOf[MyTestTrait]}
-//    }
 
     def intercept(global: nsc.Global)(unit: global.CompilationUnit): Unit = {
       import global._
 
-      val source = unit.source.file.name
-      println(s"traversing $source")
+      //val source = unit.source.file.name
 
       val traverse = new global.Traverser {
         import _root_.scala.reflect.internal._
@@ -166,7 +152,7 @@ extends Engine[Scala, T] {
           (sym != NoSymbol) &&
           !sym.isImplClass &&
           !sym.isNestedClass &&
-          sym.isStatic &&
+           sym.isStatic &&
           !sym.hasFlag(Flags.SYNTHETIC) &&
           !sym.hasFlag(Flags.JAVA)
 
@@ -184,7 +170,7 @@ extends Engine[Scala, T] {
           tree match {
             case _: ClassDef | _: ModuleDef
               if isDefined(tree.symbol) && (isClass(tree.symbol) || isModule(tree.symbol)) =>
-              callback(global)(tree.symbol, tree.symbol.typeOfThis)
+              typeDiscovered(global)(tree.symbol, tree.symbol.typeOfThis)
             case _ =>
           }
           super.traverse(tree)
