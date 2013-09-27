@@ -14,6 +14,6 @@ trait SandboxEventHandlers {
   def exceptionReceived: ExceptionReceived
 }
 
-sealed case class StandardSandboxEventHandlers(
+sealed case class MutableSandboxEventHandlers(
     var exceptionReceived: ExceptionReceived = DEFAULT_EXCEPTION_RECEIVED
 ) extends SandboxEventHandlers

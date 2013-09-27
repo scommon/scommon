@@ -3,7 +3,8 @@ package org.scommon
 import scala.language.implicitConversions
 
 package object security {
-  val SERIALIZABLE_UNIT = new Object with Serializable
+  type SerializableUnit = Object with Serializable
+  val SERIALIZABLE_UNIT: SerializableUnit = new Object with Serializable
 
   implicit def function2SandboxCallable[T <: java.io.Serializable](fn: Function0[T]) = new SandboxCallable[T] {
     def run(): T =

@@ -28,6 +28,7 @@ import org.scommon.core._
 import org.scommon.script.engine.core._
 
 import org.scommon.reactive._
+import org.scommon.security.{MutableSandbox, Sandbox}
 
 
 @RunWith(classOf[JUnitRunner])
@@ -62,13 +63,30 @@ class ScratchTest extends FunSuite
       }
 
       my.handlers.sourceCompiled = (_, result) => {
-        println(s"Source compiled, types discovered: ${result.typesDiscovered}")
+        //println(s"Source compiled, types discovered: ${result.typesDiscovered}")
+        result.unitRunInSandbox(_.context.setDebug(false)) { (entryPoints, filterTypes) =>
+          //println(entryPoints)
+
+          //Load entry points and execute them.
+          import scala.reflect.runtime.universe
+          import scala.reflect.runtime.universe._
+
+          val runtime_mirror = universe.runtimeMirror(Thread.currentThread().getContextClassLoader())
+
+          for {
+            entry_point <- entryPoints
+            cls = Class.forName(entry_point, false, Thread.currentThread().getContextClassLoader())
+//            module = {println(entry_point); runtime_mirror.staticModule(entry_point)}
+//            obj    = {println("found module"); runtime_mirror.reflectModule(module)}
+          }
+            println(cls)
+
+        }
       }
 
       my.customClassPath = customClassPath
       my.relativeDirectory = working_directory
-      my.withTypeFilter[Any]
-      my.withTypeFilter[AnyRef]
+      my.withTypeFilter[MyTestTrait]
 
       //my.options = Seq("-Xprint-types", "-Xshow-phases", "-Ydebug")
 
@@ -79,9 +97,19 @@ class ScratchTest extends FunSuite
           |trait Bar
           |case class SomeCaseClass() extends org.scommon.script.engine.MyTestTrait
           |object A {
-          |  object Baz {
+          |  object Baz extends org.scommon.script.engine.MyTestTrait {
           |    class Foo extends Bar with org.scommon.script.engine.MyTestTrait
+          |    def main(args: Array[String]) {
+          |      println("Hello, world! " + args.toList)
+          |    }
           |  }
+          |}
+        """.stripMargin,
+        """
+          |object Qux {
+          |    def main(args: Array[String]) {
+          |      println("Hello, world! " + args.toList)
+          |    }
           |}
         """.stripMargin
       )

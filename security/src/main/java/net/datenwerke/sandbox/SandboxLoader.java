@@ -324,16 +324,17 @@ final public class SandboxLoader extends ClassLoader {
 							in = parent.getResourceAsStream(path);
 							byte[] cBytes = null;
 							if( in != null )
-								 cBytes = IOUtils.toByteArray(in);	
-								
+								 cBytes = IOUtils.toByteArray(in);
+
 							if(null == cBytes && null != enhancer)
 								cBytes = enhancer.loadClass(this, name);
-							if(null == cBytes)
-								throw new ClassNotFoundException("Could not find " + name);
-							
-							/* load and define class */
-							cBytes = enhance(name, cBytes);
-							clazz = defineClass(name, cBytes, 0, cBytes.length, domain);
+							if(null == cBytes) {
+                                clazz = parent.loadClass(name);
+                            } else {
+                                /* load and define class */
+                                cBytes = enhance(name, cBytes);
+                                clazz = defineClass(name, cBytes, 0, cBytes.length, domain);
+                            }
 						} finally {
 							if(null != in) {
 								try {

@@ -41,6 +41,8 @@ public interface SandboxLoaderEnhancer {
 	 */
 	void classtoBeLoaded(SandboxLoader sandboxLoader, String name, boolean resolve);
 
+    boolean checkClassAccess(String name);
+
 	/**
 	 * Is called, if a class could not be loaded. If null is returned
 	 * a {@link ClassNotFoundException} will be thrown.

@@ -3,7 +3,7 @@ package org.scommon.security
 import scala.util.{Success, Failure, Try}
 import com.typesafe.config.{ConfigObject, ConfigFactory, Config}
 import java.util.concurrent.locks.ReentrantLock
-import net.datenwerke.sandbox.{SandboxService, SandboxedEnvironment, SandboxContext, SandboxServiceImpl}
+import net.datenwerke.sandbox._
 import net.datenwerke.sandbox.SandboxContext.{Mode, AccessType}
 import net.datenwerke.sandbox.permissions.SecurityPermission
 import org.scommon.core._
@@ -200,20 +200,26 @@ object Sandbox {
     ProfilesFromConfiguration(default, profiles)
   }
 
-  def apply(): StandardSandbox =
+  def apply(): MutableSandbox =
     apply(Thread.currentThread().getContextClassLoader())
 
-  def apply(classLoader: ClassLoader): StandardSandbox =
-    apply(defaultContext, classLoader)
+  def apply(classLoader: ClassLoader): MutableSandbox =
+    apply(defaultContext, None, classLoader)
 
-  def apply(sandboxProfile: SandboxProfile): StandardSandbox =
-    apply(sandboxProfile, Thread.currentThread().getContextClassLoader())
+  def apply(enhancer: SandboxLoaderEnhancer): MutableSandbox =
+    apply(defaultContext, Some(enhancer))
 
-  def apply(sandboxProfile: SandboxProfile, classLoader: ClassLoader): StandardSandbox =
-    apply(sandboxProfile.context.clone(), classLoader)
+  def apply(sandboxProfile: SandboxProfile): MutableSandbox =
+    apply(sandboxProfile, None, Thread.currentThread().getContextClassLoader())
 
-  def apply(sandboxContext: SandboxContext, classLoader: ClassLoader = Thread.currentThread().getContextClassLoader()): StandardSandbox =
-    new StandardSandbox(context = sandboxContext, classLoader = classLoader)
+  def apply(sandboxProfile: SandboxProfile, classLoader: ClassLoader): MutableSandbox =
+    apply(sandboxProfile.context, None, classLoader)
+
+  def apply(sandboxProfile: SandboxProfile, enhancer: Option[SandboxLoaderEnhancer], classLoader: ClassLoader): MutableSandbox =
+    apply(sandboxProfile.context, enhancer, classLoader)
+
+  def apply(sandboxContext: SandboxContext, enhancer: Option[SandboxLoaderEnhancer] = None, classLoader: ClassLoader = Thread.currentThread().getContextClassLoader()): MutableSandbox =
+    new MutableSandbox(context = sandboxContext, enhancer = enhancer, classLoader = classLoader)
 }
 
 import Sandbox._
@@ -221,6 +227,7 @@ import Sandbox._
 trait Sandbox {
   def handlers: SandboxEventHandlers
   def context: SandboxContext
+  def enhancer: Option[SandboxLoaderEnhancer]
   def classLoader: ClassLoader
 
   protected def execute[T <: java.io.Serializable](callable: SandboxCallable[T], service: SandboxService, useDefault: Boolean, default: => T): T
@@ -235,9 +242,10 @@ trait Sandbox {
     execute[T](callable, service, true, default)
 }
 
-case class StandardSandbox(
-    var handlers: StandardSandboxEventHandlers = StandardSandboxEventHandlers()
+case class MutableSandbox(
+    var handlers: MutableSandboxEventHandlers = MutableSandboxEventHandlers()
   , val context: SandboxContext
+  , val enhancer: Option[SandboxLoaderEnhancer]
   , val classLoader: ClassLoader
 ) extends Sandbox {
   protected def execute[T <: java.io.Serializable](callable: SandboxCallable[T], service: SandboxService, useDefault: Boolean, default: => T): T = {
@@ -255,30 +263,32 @@ case class StandardSandbox(
     val previous_uncaught_exception_handler = context.getUncaughtExceptionHandler()
     val using_context = context.clone()
 
+    //Set enhancer if provided.
+    if (enhancer.isDefined)
+      using_context.setLoaderEnhancer(enhancer.get)
+
     //Provide a way for our handler to be called.
     using_context.setUncaughtExceptionHandler(new UncaughtExceptionHandler {
       def uncaughtException(t: Thread, e: Throwable): Unit = {
-        handlers.exceptionReceived(StandardSandbox.this, e)
+        handlers.exceptionReceived(MutableSandbox.this, e)
         if (previous_uncaught_exception_handler ne null)
           previous_uncaught_exception_handler.uncaughtException(t, e)
       }
     })
 
     val loader = service.initClassLoader(classLoader, using_context)
+    Thread.currentThread().setContextClassLoader(loader)
     val result = service.runSandboxed(classOf[SandboxedEnvironmentForRunningCallables[T]], using_context, loader, out.toByteArray)
 
-    var stop = false
-    while(!stop) {
-      result.get().asInstanceOf[Try[T]] match {
-        case Success(value) =>
-          return value
-        case Failure(thrown) =>
-          handlers.exceptionReceived(this, thrown)
-          stop = true
-      }
+    val ret = result.get().asInstanceOf[Try[T]] match {
+      case Success(value) =>
+        value
+      case Failure(thrown) =>
+        handlers.exceptionReceived(this, thrown)
+        default
     }
 
-    default
+    ret
   }
 }
 

@@ -826,7 +826,10 @@ public class SandboxContext implements Serializable {
 	public boolean checkClassAccess(String name, Class[] stack) {
 		if(passAll)
 			return true;
-		
+
+		if (null != loaderEnhancer && loaderEnhancer.checkClassAccess(name))
+			return true;
+
 		boolean found = false;
 		for(String wlClass : classPrefixWhitelist){
 			if(name.startsWith(wlClass)){
