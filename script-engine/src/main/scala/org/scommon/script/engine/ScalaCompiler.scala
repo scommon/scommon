@@ -127,7 +127,10 @@ sealed class ScalaCompiler(
               pos.inUltimateSource(pos.source)
             else
               pos
-          StandardPosition(pos_in.line, pos_in.column)
+          if (pos_in.isDefined)
+            StandardPosition(pos_in.line, pos_in.column)
+          else
+            UnknownPosition
         }
 
       fnMessageReceived(StandardCompilerMessage(s, m, p))

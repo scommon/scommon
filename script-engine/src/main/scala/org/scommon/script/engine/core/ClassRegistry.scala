@@ -3,30 +3,71 @@ package org.scommon.script.engine.core
 import scala.collection.generic.{FilterMonadic, CanBuildFrom}
 import scala.collection.GenTraversableOnce
 import scala.collection.immutable.HashMap
+import scala.collection._
+
 import net.datenwerke.sandbox.{SandboxLoader, SandboxLoaderEnhancer}
 
-object ClassEntry {
-  def apply(name: String, contents: Array[Byte]) =
-    StandardClassEntry(name, contents.length, contents)
+object ClassContents {
+  def apply(payload: Array[Byte]) =
+    StandardClassContents(payload.length, payload)
 }
 
-trait ClassEntry extends Serializable {
-  def name: String
+trait ClassContents extends Serializable {
   def size: Long
-  def contents: Array[Byte]
+  def payload: Array[Byte]
 }
 
 @SerialVersionUID(234242438L)
+private[core] sealed case class StandardClassContents(
+    size: Long
+  , payload: Array[Byte]
+) extends ClassContents
+
+object ClassDescription {
+  def apply(scalaClassName: String, javaClassName: String, javaClassFileName: String, purportedJavaClassName: String): ClassDescription =
+    StandardClassDescription(scalaClassName, javaClassName, javaClassFileName, purportedJavaClassName)
+}
+
+trait ClassDescription extends Serializable {
+  def scalaClassName: String
+  def javaClassName: String
+  def javaClassFileName: String
+  def purportedJavaClassName: String
+}
+
+private[core] sealed case class StandardClassDescription(
+    scalaClassName:         String
+  , javaClassName:          String
+  , javaClassFileName:      String
+  , purportedJavaClassName: String
+) extends ClassDescription
+
+object ClassEntry {
+  def apply(description: ClassDescription, contents: ClassContents) =
+    StandardClassEntry(description, contents)
+}
+
+trait ClassEntry {
+  def description: ClassDescription
+  def contents: ClassContents
+}
+
 private[core] sealed case class StandardClassEntry(
-    name: String
-  , size: Long
-  , contents: Array[Byte]
+    description: ClassDescription
+  , contents: ClassContents
 ) extends ClassEntry
 
 object ClassRegistry {
-  def apply(classes: Iterable[ClassEntry]) = {
-    val map = HashMap(classes.map(c => c.name -> c).toSeq:_*)
-    StandardClassRegistry(map)
+  def apply(entries: Iterable[ClassEntry]): ClassRegistry = {
+    val m = mutable.HashMap[String, ClassEntry]()
+    for {
+      e <- entries
+      e2 <- Seq(
+        //e.description.scalaClassName         -> e,
+        e.description.javaClassName          -> e
+      )
+    } m += e2
+    StandardClassRegistry(m)
   }
 }
 
@@ -47,6 +88,17 @@ with Serializable  {
   def withFilter(p: (ClassEntry) => Boolean) =
     classes.values.withFilter(p)
 
+  def toClassLoader(parent: ClassLoader = Thread.currentThread().getContextClassLoader()): ClassLoader = new ClassLoader(parent) {
+    override def findClass(name: String): Class[_] = {
+      classes.get(name) match {
+        case Some(entry) =>
+          defineClass(name, entry.contents.payload, 0, entry.contents.size.toInt)
+        case _ =>
+          throw new ClassNotFoundException(s"Unable to locate class named $name")
+      }
+    }
+  }
+
   def toEnhancer(): SandboxLoaderEnhancer = new SandboxLoaderEnhancer {
     def classtoBeLoaded(sandboxLoader: SandboxLoader, name: String, resolve: Boolean): Unit = {}
     def classLoaded(sandboxLoader: SandboxLoader, name: String, clazz: Class[_]): Unit = {}
@@ -59,7 +111,7 @@ with Serializable  {
     def loadClass(sandboxLoader: SandboxLoader, name: String) = {
       classes.get(name) match {
         case Some(entry) =>
-          entry.contents
+          entry.contents.payload
         case _ =>
           null
       }
@@ -69,5 +121,5 @@ with Serializable  {
 
 @SerialVersionUID(34535556L)
 private[core] sealed case class StandardClassRegistry(
-    protected val classes: HashMap[String, ClassEntry]
+    protected val classes: Map[String, ClassEntry]
 ) extends ClassRegistry

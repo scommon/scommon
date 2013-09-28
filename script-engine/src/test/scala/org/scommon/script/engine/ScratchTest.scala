@@ -63,25 +63,45 @@ class ScratchTest extends FunSuite
       }
 
       my.handlers.sourceCompiled = (_, result) => {
-        //println(s"Source compiled, types discovered: ${result.typesDiscovered}")
-        result.unitRunInSandbox(_.context.setDebug(false)) { (entryPoints, filterTypes) =>
-          //println(entryPoints)
-
-          //Load entry points and execute them.
+        {
           import scala.reflect.runtime.universe
           import scala.reflect.runtime.universe._
 
-          val runtime_mirror = universe.runtimeMirror(Thread.currentThread().getContextClassLoader())
+          //No sandbox
+          val cl = result.classRegistry.toClassLoader()
+          val runtime_mirror = universe.runtimeMirror(cl)
 
           for {
-            entry_point <- entryPoints
-            cls = Class.forName(entry_point, false, Thread.currentThread().getContextClassLoader())
-//            module = {println(entry_point); runtime_mirror.staticModule(entry_point)}
-//            obj    = {println("found module"); runtime_mirror.reflectModule(module)}
+            entry_point <- result.entryPointsDiscovered
+            //cls = Class.forName(entry_point.javaClassName, false, cl)
+            module = runtime_mirror.staticModule(entry_point.scalaClassName)
+            obj    = runtime_mirror.reflectModule(module)
+            reflected = runtime_mirror.reflect(obj.instance)
+            method = obj.symbol.typeSignature.member(newTermName("main")).asMethod
+            main = reflected.reflectMethod(method)
+          } {
+            //println(cls)
+            main(Array[String]())
           }
-            println(cls)
-
         }
+
+//        result.unitRunInSandbox(_.context.setDebug(true)) { (entryPoints, filterTypes) =>
+//          //Load entry points and execute them.
+//          import scala.reflect.runtime.universe
+//          import scala.reflect.runtime.universe._
+//
+//          val runtime_mirror = universe.runtimeMirror(Thread.currentThread().getContextClassLoader())
+//
+//          for {
+//            entry_point <- entryPoints
+//            //cls = Class.forName(entry_point.javaClassName, false, Thread.currentThread().getContextClassLoader())
+//            module = {println(entry_point); runtime_mirror.staticModule(entry_point.scalaClassName)}
+//            //obj    = {println("found module"); runtime_mirror.reflectModule(module)}
+//          } {
+//            //println(cls)
+//            println(module)
+//          }
+//        }
       }
 
       my.customClassPath = customClassPath
@@ -106,9 +126,10 @@ class ScratchTest extends FunSuite
           |}
         """.stripMargin,
         """
+          |package abc
           |object Qux {
           |    def main(args: Array[String]) {
-          |      println("Hello, world! " + args.toList)
+          |      println("Hello, world! Qux")
           |    }
           |}
         """.stripMargin

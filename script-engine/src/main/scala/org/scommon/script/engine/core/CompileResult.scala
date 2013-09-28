@@ -3,8 +3,8 @@ package org.scommon.script.engine.core
 import org.scommon.security._
 
 object CompileResult {
-  type SerializableDiscoveredTypeMap = Map[String, Iterable[String]]
-  type SerializableDiscoveredEntryPoints = Iterable[String]
+  type SerializableDiscoveredTypeMap = Map[String, Iterable[ClassDescription]]
+  type SerializableDiscoveredEntryPoints = Iterable[ClassDescription]
 
 
   type RunInSandboxHandler[T] = (SerializableDiscoveredEntryPoints, SerializableDiscoveredTypeMap) => T
@@ -40,7 +40,7 @@ trait CompileResult {
     //Exercise caution here because we do not want to inadvertently introduce something that
     //cannot be serialized into the sandbox. So serialize out our data here instead of in
     //the run callback.
-    val sandbox = Sandbox(classRegistry.toEnhancer())
+    val sandbox = Sandbox(classRegistry.toClassLoader())
     fnMutateSandbox(sandbox)
 
     sandbox.run[SerializableUnit] {
@@ -55,7 +55,7 @@ trait CompileResult {
     //Exercise caution here because we do not want to inadvertently introduce something that
     //cannot be serialized into the sandbox. So serialize out our data here instead of in
     //the run callback.
-    val sandbox = Sandbox(classRegistry.toEnhancer())
+    val sandbox = Sandbox(classRegistry.toClassLoader())
     fnMutateSandbox(sandbox)
 
     sandbox.run[T] {

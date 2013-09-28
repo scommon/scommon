@@ -89,13 +89,15 @@ extends Engine[Scala, T] {
     compiler.compile(sources)
 
     val discovered_types: CompileResult.SerializableDiscoveredTypeMap = {
-      for {
-        (name, types) <- scala_type_filter.discovered
-      } yield (name, types.toIterable)
+      for ((name, descriptions) <- scala_type_filter.discovered)
+        yield (name, descriptions.toIterable)
     }.toMap withDefaultValue Iterable()
 
     val discovered_entry_points =
-      scala_type_filter.discoveredEntryPoints.toSeq
+      scala_type_filter.discoveredEntryPoints
+
+    val descriptions =
+      scala_type_filter.descriptions
 
     val entries = mutable.Stack[ClassEntry]()
     val s = mutable.Stack[nsc.io.AbstractFile]()
@@ -112,10 +114,16 @@ extends Engine[Scala, T] {
           val candidate_path = candidate.canonicalPath
           val path = if (candidate_path.startsWith(output_path)) candidate_path.substring(output_path.length()) else candidate_path
           val path_ex = if (path.startsWith("/")) path.substring(1) else path
-          val path_ex_2 = if (path_ex.endsWith(".class")) path_ex.substring(0, path_ex.length - ".class".length) else path_ex
-          val name = path_ex_2.replaceAllLiterally("/", ".").replaceAllLiterally("\\", ".")
-          entries push ClassEntry(name, candidate.toByteArray)
-          //println(s"compiled: ${candidate.canonicalPath}\nbytes: ${candidate.toByteArray.length}")
+
+          //Lookup the corresponding description.
+          descriptions.get(path_ex) match {
+            case Some(description) =>
+              entries push ClassEntry(description, ClassContents(candidate.toByteArray))
+            case _ =>
+              throw new IllegalStateException(s"Scala scripting engine was unable to locate the associated class description for $path_ex")
+          }
+
+          println(s"compiled: ${candidate.canonicalPath}\nbytes: ${candidate.toByteArray.length}")
         }
       }
     }
@@ -133,12 +141,41 @@ extends Engine[Scala, T] {
     override val runsAfterPhases     = List(CompilerPhase.Typer)
     override val runsRightAfterPhase = Some(CompilerPhase.Pickler)
 
-    val discovered = mutable.Map[String, mutable.LinkedHashSet[String]]() withDefaultValue mutable.LinkedHashSet()
-    val discoveredEntryPoints = mutable.LinkedHashSet[String]()
+    val descriptions = mutable.HashMap[String, ClassDescription]()
+    val discovered = mutable.HashMap[String, mutable.LinkedHashSet[ClassDescription]]() withDefaultValue mutable.LinkedHashSet()
+    val discoveredEntryPoints = mutable.LinkedHashSet[ClassDescription]()
 
     /** Called when a class or module is found. */
     def typeDiscovered(global: nsc.Global)(s: global.Symbol, t: global.Type) = {
       import global._
+
+      def addDescription(sym: global.Symbol): ClassDescription = {
+        val true_java_class_name =
+          ScalaCompilerUtils.trueJavaClassName(global)(sym)
+
+        val description = ClassDescription(
+            scalaClassName         = sym.fullNameString //sym.fullNameString //sym.typeOfThis.toLongString
+          , javaClassName          = true_java_class_name
+          , javaClassFileName      = true_java_class_name.replaceAllLiterally(".", "/") + ".class"
+          , purportedJavaClassName = (if (sym.isClass || (sym.isModule && !sym.isMethod)) sym.javaBinaryName else sym.javaSimpleName).toString
+        )
+
+        //Hold on to the list of discovered classes.
+        descriptions(description.javaClassFileName) = description
+
+        description
+      }
+
+      //Create and register a class description for this symbol.
+      val description =
+        addDescription(s)
+
+      //Modules also have an associated module class that should also be added.
+      val module_class_description =
+        if (s.isModule)
+          addDescription(s.moduleClass)
+        else
+          null
 
       //Examine each incoming type and see if there's a corresponding type filter
       //defined whose tag is a supertype of the provided discovered type.
@@ -148,7 +185,7 @@ extends Engine[Scala, T] {
 
         if t <:< filter_type_in_global_universe
       }
-        discovered(filter.name) = (discovered(filter.name) += s.javaClassName)
+        discovered(filter.name) = (discovered(filter.name) += description)
 
       //Look for a main method. Search parameters are defined as:
       //  - A module
@@ -162,7 +199,7 @@ extends Engine[Scala, T] {
           method = member.asMethod if member.nameString == "main"
           params = method.paramss.flatten.map(_.typeOfThis) if !params.isEmpty && params.size == 1 && params.head =:= type_of_array_string
         }
-          discoveredEntryPoints += s.javaClassName
+          discoveredEntryPoints += description
       }
     }
 
