@@ -70,23 +70,23 @@ object ClassRegistry {
 trait ClassRegistry extends FilterMonadic[ClassEntry, Iterable[ClassEntry]]
 with Serializable  {
 
-  protected def classes: Map[String, ClassEntry]
+  protected def entries: Map[String, ClassEntry]
 
   def map[B, That](f: (ClassEntry) => B)(implicit bf: CanBuildFrom[Iterable[ClassEntry], B, That]) =
-    classes.values.map(f)(bf)
+    entries.values.map(f)(bf)
 
   def flatMap[B, That](f: (ClassEntry) => GenTraversableOnce[B])(implicit bf: CanBuildFrom[Iterable[ClassEntry], B, That]) =
-    classes.values.flatMap(f)(bf)
+    entries.values.flatMap(f)(bf)
 
   def foreach[U](f: (ClassEntry) => U) =
-    classes.values.foreach(f)
+    entries.values.foreach(f)
 
   def withFilter(p: (ClassEntry) => Boolean) =
-    classes.values.withFilter(p)
+    entries.values.withFilter(p)
 
   def toClassLoader(parent: ClassLoader = Thread.currentThread().getContextClassLoader()): ClassLoader = new ClassLoader(parent) {
     override def findClass(name: String): Class[_] = {
-      classes.get(name) match {
+      entries.get(name) match {
         case Some(entry) =>
           defineClass(name, entry.contents.payload, 0, entry.contents.size.toInt)
         case _ =>
@@ -98,5 +98,5 @@ with Serializable  {
 
 @SerialVersionUID(34535556L)
 private[core] sealed case class StandardClassRegistry(
-    protected val classes: Map[String, ClassEntry]
+    protected val entries: Map[String, ClassEntry]
 ) extends ClassRegistry
