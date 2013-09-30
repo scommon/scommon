@@ -90,14 +90,15 @@ object Engine {
 
     var default:EngineFactory[CompilerSpecificSettings] = null
     val scoped = config.getConfig("script-engine")
-    val script_engines = scoped.getObjectList("engines")
+    val script_engines = scoped.getStringList("engines")
     val script_default = scoped.getString("default")
 
     val engines =
       for {
-        e <- script_engines
-        name    = e.get("name").unwrapped().toString
-        factory = e.get("factory").unwrapped().toString
+        script_engine <- script_engines
+        e       = scoped.getObject(script_engine).toConfig
+        name    = e.getString("name")
+        factory = e.getString("factory")
       } yield {
         try {
           val module          = runtime_mirror.staticModule(factory)
