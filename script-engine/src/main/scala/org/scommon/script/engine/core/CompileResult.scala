@@ -1,6 +1,7 @@
 package org.scommon.script.engine.core
 
 import org.scommon.security._
+import net.datenwerke.sandbox.SandboxContext.{Mode, AccessType}
 
 object CompileResult {
   type SerializableDiscoveredTypeMap = Map[String, Iterable[ClassDescription]]
@@ -65,6 +66,10 @@ trait CompileResult {
     val sandbox = Sandbox(classRegistry.toClassLoader())
     val data = StandardSandboxData(entryPoints, filterTypes)
 
+    //Mark all classes from the registry as available in the sandbox.
+    for(e <- classRegistry; class_name = e.description.javaClassName)
+      sandbox.context.addClassPermission(AccessType.PERMIT, Mode.NORMAL, class_name)
+
     fnMutateSandbox(sandbox)
 
     sandbox.run[SerializableUnit] {
@@ -81,6 +86,10 @@ trait CompileResult {
     //the run callback.
     val sandbox = Sandbox(classRegistry.toClassLoader())
     val data = StandardSandboxData(entryPoints, filterTypes)
+
+    //Mark all classes from the registry as available in the sandbox.
+    for(e <- classRegistry; class_name = e.description.javaClassName)
+      sandbox.context.addClassPermission(AccessType.PERMIT, Mode.NORMAL, class_name)
 
     fnMutateSandbox(sandbox)
 

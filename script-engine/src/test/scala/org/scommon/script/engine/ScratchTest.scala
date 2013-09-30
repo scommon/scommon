@@ -85,7 +85,7 @@ class ScratchTest extends FunSuite
           }
         }
 
-        result.unitRunInSandbox(_.context.setBypassClassAccessChecks(true)) { data =>
+        result.unitRunInSandbox(_.context.setDebug(false)) { data =>
 
           //Load entry points and execute them.
           import scala.reflect.runtime.universe
