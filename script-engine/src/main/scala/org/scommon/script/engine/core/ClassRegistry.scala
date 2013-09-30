@@ -6,6 +6,7 @@ import scala.collection.immutable.HashMap
 import scala.collection._
 
 import net.datenwerke.sandbox.{SandboxLoader, SandboxLoaderEnhancer}
+import org.scommon.script.engine.core.CompileResult.SerializableDiscoveredEntryPoints
 
 object ClassContents {
   def apply(payload: Array[Byte]) =
@@ -60,13 +61,8 @@ private[core] sealed case class StandardClassEntry(
 object ClassRegistry {
   def apply(entries: Iterable[ClassEntry]): ClassRegistry = {
     val m = mutable.HashMap[String, ClassEntry]()
-    for {
-      e <- entries
-      e2 <- Seq(
-        //e.description.scalaClassName         -> e,
-        e.description.javaClassName          -> e
-      )
-    } m += e2
+    for (e <- entries)
+      m += e.description.javaClassName -> e
     StandardClassRegistry(m)
   }
 }
@@ -95,25 +91,6 @@ with Serializable  {
           defineClass(name, entry.contents.payload, 0, entry.contents.size.toInt)
         case _ =>
           throw new ClassNotFoundException(s"Unable to locate class named $name")
-      }
-    }
-  }
-
-  def toEnhancer(): SandboxLoaderEnhancer = new SandboxLoaderEnhancer {
-    def classtoBeLoaded(sandboxLoader: SandboxLoader, name: String, resolve: Boolean): Unit = {}
-    def classLoaded(sandboxLoader: SandboxLoader, name: String, clazz: Class[_]): Unit = {}
-    def isLoadClassWithApplicationLoader(name: String) = false
-    def enhance(sandboxLoader: SandboxLoader, name: String, cBytes: Array[Byte]) = cBytes //Do not manipulate the bytes
-
-    def checkClassAccess(name: String) =
-      classes.contains(name)
-
-    def loadClass(sandboxLoader: SandboxLoader, name: String) = {
-      classes.get(name) match {
-        case Some(entry) =>
-          entry.contents.payload
-        case _ =>
-          null
       }
     }
   }

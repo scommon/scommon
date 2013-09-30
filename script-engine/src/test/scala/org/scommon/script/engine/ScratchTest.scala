@@ -72,7 +72,7 @@ class ScratchTest extends FunSuite
           val runtime_mirror = universe.runtimeMirror(cl)
 
           for {
-            entry_point <- result.entryPointsDiscovered
+            entry_point <- result.entryPoints
             //cls = Class.forName(entry_point.javaClassName, false, cl)
             module = runtime_mirror.staticModule(entry_point.scalaClassName)
             obj    = runtime_mirror.reflectModule(module)
@@ -85,23 +85,24 @@ class ScratchTest extends FunSuite
           }
         }
 
-//        result.unitRunInSandbox(_.context.setDebug(true)) { (entryPoints, filterTypes) =>
-//          //Load entry points and execute them.
-//          import scala.reflect.runtime.universe
-//          import scala.reflect.runtime.universe._
-//
-//          val runtime_mirror = universe.runtimeMirror(Thread.currentThread().getContextClassLoader())
-//
-//          for {
-//            entry_point <- entryPoints
-//            //cls = Class.forName(entry_point.javaClassName, false, Thread.currentThread().getContextClassLoader())
-//            module = {println(entry_point); runtime_mirror.staticModule(entry_point.scalaClassName)}
-//            //obj    = {println("found module"); runtime_mirror.reflectModule(module)}
-//          } {
-//            //println(cls)
-//            println(module)
-//          }
-//        }
+        result.unitRunInSandbox(_.context.setBypassClassAccessChecks(true)) { data =>
+
+          //Load entry points and execute them.
+          import scala.reflect.runtime.universe
+          import scala.reflect.runtime.universe._
+
+          val runtime_mirror = universe.runtimeMirror(Thread.currentThread().getContextClassLoader())
+
+          for {
+            entry_point <- data.entryPoints
+            //cls = Class.forName(entry_point.javaClassName, false, Thread.currentThread().getContextClassLoader())
+            module = {println(entry_point); runtime_mirror.staticModule(entry_point.scalaClassName)}
+            //obj    = {println("found module"); runtime_mirror.reflectModule(module)}
+          } {
+            //println(cls)
+            println(module)
+          }
+        }
       }
 
       my.customClassPath = customClassPath

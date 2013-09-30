@@ -7,28 +7,50 @@ object CompileResult {
   type SerializableDiscoveredEntryPoints = Iterable[ClassDescription]
 
 
-  type RunInSandboxHandler[T] = (SerializableDiscoveredEntryPoints, SerializableDiscoveredTypeMap) => T
+  type RunInSandboxHandler[T] = SandboxData => T
   type MutateSandboxHandler = MutableSandbox => Unit
 
-  def apply(classRegistry: ClassRegistry, entryPointsDiscovered: SerializableDiscoveredEntryPoints, typesDiscovered: SerializableDiscoveredTypeMap = Map() withDefaultValue Iterable()) =
-    StandardCompileResult(classRegistry, entryPointsDiscovered, typesDiscovered)
+  def apply(entryPoints: SerializableDiscoveredEntryPoints, filterTypes: SerializableDiscoveredTypeMap, classRegistry: ClassRegistry) =
+    StandardCompileResult(entryPoints, filterTypes, classRegistry)
 }
 
 import CompileResult._
 
+/** Packages up data for use when running in a sandbox. All contents must be serializable. */
+trait SandboxData extends Serializable {
+  def entryPoints: SerializableDiscoveredEntryPoints
+  def filterTypes: SerializableDiscoveredTypeMap
+}
+
+object SandboxData {
+  def unapply(sd: SandboxData): Option[(SerializableDiscoveredEntryPoints, SerializableDiscoveredTypeMap)] =
+    if (sd ne null)
+      Some((sd.entryPoints, sd.filterTypes))
+    else
+      None
+}
+
+private[core] sealed case class StandardSandboxData(
+    entryPoints: SerializableDiscoveredEntryPoints
+  , filterTypes: SerializableDiscoveredTypeMap
+) extends SandboxData
+
 trait CompileResult {
+  def entryPoints: SerializableDiscoveredEntryPoints
+  def filterTypes: SerializableDiscoveredTypeMap
   def classRegistry: ClassRegistry
-  def typesDiscovered: SerializableDiscoveredTypeMap
-  def entryPointsDiscovered: SerializableDiscoveredEntryPoints
 
   def withSandbox[U](fn: (MutableSandbox) => U): U =
-    fn(Sandbox(classRegistry.toEnhancer()))
+    fn(Sandbox(classRegistry.toClassLoader()))
+
+  def withSandbox[U](parent: ClassLoader)(fn: (MutableSandbox) => U): U =
+    fn(Sandbox(classRegistry.toClassLoader(parent)))
 
   def unitBasicRunInSandbox(fn: => Unit): Unit =
-    unitRunInSandbox(_ => {})((_, _) => fn)
+    unitRunInSandbox(_ => {})((_) => fn)
 
   def basicRunInSandbox[T <: Serializable](fn: => T): T =
-    runInSandbox[T](_ => {})((_, _) => fn)
+    runInSandbox[T](_ => {})((_) => fn)
 
   def unitRunInSandboxWithTypes(fn: RunInSandboxHandler[Unit]): Unit =
     unitRunInSandbox(_ => {})(fn)
@@ -41,10 +63,12 @@ trait CompileResult {
     //cannot be serialized into the sandbox. So serialize out our data here instead of in
     //the run callback.
     val sandbox = Sandbox(classRegistry.toClassLoader())
+    val data = StandardSandboxData(entryPoints, filterTypes)
+
     fnMutateSandbox(sandbox)
 
     sandbox.run[SerializableUnit] {
-      fn(entryPointsDiscovered, typesDiscovered)
+      fn(data)
       SERIALIZABLE_UNIT
     }
 
@@ -56,16 +80,18 @@ trait CompileResult {
     //cannot be serialized into the sandbox. So serialize out our data here instead of in
     //the run callback.
     val sandbox = Sandbox(classRegistry.toClassLoader())
+    val data = StandardSandboxData(entryPoints, filterTypes)
+
     fnMutateSandbox(sandbox)
 
     sandbox.run[T] {
-      fn(entryPointsDiscovered, typesDiscovered)
+      fn(data)
     }
   }
 }
 
 private[core] sealed case class StandardCompileResult(
-    classRegistry        : ClassRegistry
-  , entryPointsDiscovered: SerializableDiscoveredEntryPoints
-  , typesDiscovered      : SerializableDiscoveredTypeMap
+    entryPoints  : SerializableDiscoveredEntryPoints
+  , filterTypes  : SerializableDiscoveredTypeMap
+  , classRegistry: ClassRegistry
 ) extends CompileResult

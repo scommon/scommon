@@ -130,7 +130,7 @@ extends Engine[Scala, T] {
     s.clear()
 
     //Notify everyone that we've completed compilation.
-    settings.handlers.sourceCompiled(this, CompileResult(ClassRegistry(entries), discovered_entry_points, discovered_types))
+    settings.handlers.sourceCompiled(this, CompileResult(discovered_entry_points, discovered_types, ClassRegistry(entries)))
   }
 
   private[this] class ScalaTypeFilter(val typeFilters: Iterable[CompilerTypeFilter]) extends ScalaPhaseIntercept {
