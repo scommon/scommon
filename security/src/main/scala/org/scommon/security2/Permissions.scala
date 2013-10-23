@@ -27,10 +27,12 @@ trait Permissions extends Serializable {
     append(permissions :+ permission)
 }
 
+@SerialVersionUID(798267429369L)
 private[security2] sealed class PermissionsImpl(private[this] val my_permissions: JPermissions = new JPermissions()) extends Permissions {
-
+import scala.collection.JavaConversions._
   override def hashCode() = my_permissions.hashCode()
   override def equals(obj: Any) = my_permissions.equals(obj)
+  override def toString = my_permissions.elements().mkString("Permissions(", ", ", ")")
 
   def append(permissions: Iterable[Permission]): Permissions = {
     val new_perms = new JPermissions()
