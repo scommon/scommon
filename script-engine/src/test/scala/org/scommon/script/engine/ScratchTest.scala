@@ -63,45 +63,55 @@ class ScratchTest extends FunSuite
       }
 
       my.handlers.sourceCompiled = (_, result) => {
-        {
-          import scala.reflect.runtime.universe
-          import scala.reflect.runtime.universe._
+        import scala.reflect.runtime.universe
+        import scala.reflect.runtime.universe._
 
-          //No sandbox
+        {
+          //Execute outside the sandbox
           val cl = result.classRegistry.toClassLoader()
           val runtime_mirror = universe.runtimeMirror(cl)
 
           for {
             entry_point <- result.entryPoints
             //cls = Class.forName(entry_point.javaClassName, false, cl)
-            module = runtime_mirror.staticModule(entry_point.scalaClassName)
-            obj    = runtime_mirror.reflectModule(module)
+            module    = runtime_mirror.staticModule(entry_point.scalaClassName)
+            obj       = runtime_mirror.reflectModule(module)
             reflected = runtime_mirror.reflect(obj.instance)
-            method = obj.symbol.typeSignature.member(newTermName("main")).asMethod
-            main = reflected.reflectMethod(method)
+            method    = obj.symbol.typeSignature.member(newTermName("main")).asMethod
+            main      = reflected.reflectMethod(method)
           } {
             //println(cls)
             main(Array[String]())
           }
         }
 
+
         result.unitRunInSandbox(_.context.setDebug(false)) { data =>
+          import org.scommon.core.ThreadUtil._
+          val thread = new Thread(new Runnable {
+            def run(): Unit = {
+              //Load entry points and execute them.
 
-          //Load entry points and execute them.
-          import scala.reflect.runtime.universe
-          import scala.reflect.runtime.universe._
+              val runtime_mirror = universe.runtimeMirror(data.classLoader)
 
-          val runtime_mirror = universe.runtimeMirror(Thread.currentThread().getContextClassLoader())
+              for {
+                entry_point <- data.entryPoints
+                //cls = Class.forName(entry_point.javaClassName, false, Thread.currentThread().getContextClassLoader())
+                module    = runtime_mirror.staticModule(entry_point.scalaClassName)
+                obj       = runtime_mirror.reflectModule(module)
+                reflected = runtime_mirror.reflect(obj.instance)
+                method    = obj.symbol.typeSignature.member(newTermName("main")).asMethod
+                main      = reflected.reflectMethod(method)
+              } {
+                //println(cls)
+                main(Array[String]())
+              }
+            }
+          })
 
-          for {
-            entry_point <- data.entryPoints
-            //cls = Class.forName(entry_point.javaClassName, false, Thread.currentThread().getContextClassLoader())
-            module = {println(entry_point); runtime_mirror.staticModule(entry_point.scalaClassName)}
-            //obj    = {println("found module"); runtime_mirror.reflectModule(module)}
-          } {
-            //println(cls)
-            println(module)
-          }
+          thread.start()
+          thread.join()
+
         }
       }
 
@@ -137,16 +147,14 @@ class ScratchTest extends FunSuite
       )
 
       usingUnit(engine) {
-        val context = Some {
-          val ctx = StandardCompilerContext()
-          ctx.handlers.messageReceived = (e, m) => {
-            println(s"OTHER CONTEXT: ${m.message}")
-          }
-          ctx
+
+        val separate_context = StandardCompilerContext()
+        separate_context.handlers.messageReceived = (e, m) => {
+          println(s"OTHER CONTEXT: ${m.message}")
         }
 
         //Pushing with a different context invokes its handlers.
-        engine.generator.push(context, CompilerSource.fromString(
+        engine.push(separate_context, CompilerSource.fromString(
           """
             |package second
             |trait Foo
@@ -154,8 +162,6 @@ class ScratchTest extends FunSuite
           """.stripMargin
         ))
       }
-
-      def error(message:String): Unit = println(s"$message")
     } finally {
       working.deleteAll should be (true)
       working.exists should be (false)

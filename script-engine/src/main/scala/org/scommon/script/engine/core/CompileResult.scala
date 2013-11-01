@@ -21,12 +21,15 @@ import CompileResult._
 trait SandboxData extends Serializable {
   def entryPoints: SerializableDiscoveredEntryPoints
   def filterTypes: SerializableDiscoveredTypeMap
+  def classLoader: ClassLoader =
+    //Unfortunately this relies on behavior in MutableSandbox#execute().
+    Thread.currentThread().getContextClassLoader()
 }
 
 object SandboxData {
-  def unapply(sd: SandboxData): Option[(SerializableDiscoveredEntryPoints, SerializableDiscoveredTypeMap)] =
+  def unapply(sd: SandboxData): Option[(SerializableDiscoveredEntryPoints, SerializableDiscoveredTypeMap, ClassLoader)] =
     if (sd ne null)
-      Some((sd.entryPoints, sd.filterTypes))
+      Some((sd.entryPoints, sd.filterTypes, sd.classLoader))
     else
       None
 }
@@ -36,7 +39,7 @@ private[core] sealed case class StandardSandboxData(
   , filterTypes: SerializableDiscoveredTypeMap
 ) extends SandboxData
 
-trait CompileResult {
+trait CompileResult { //NOT serializable
   def entryPoints: SerializableDiscoveredEntryPoints
   def filterTypes: SerializableDiscoveredTypeMap
   def classRegistry: ClassRegistry
@@ -63,12 +66,15 @@ trait CompileResult {
     //Exercise caution here because we do not want to inadvertently introduce something that
     //cannot be serialized into the sandbox. So serialize out our data here instead of in
     //the run callback.
-    val sandbox = Sandbox(classRegistry.toClassLoader())
+    val class_loader = classRegistry.toClassLoader()
+    val sandbox = Sandbox(class_loader)
     val data = StandardSandboxData(entryPoints, filterTypes)
 
     //Mark all classes from the registry as available in the sandbox.
     for(e <- classRegistry; class_name = e.description.javaClassName)
       sandbox.context.addClassPermission(AccessType.PERMIT, Mode.NORMAL, class_name)
+
+    //TODO: Need to add add'l classes/jars in the compiler settings to the sandbox's permissions.
 
     fnMutateSandbox(sandbox)
 
@@ -84,12 +90,15 @@ trait CompileResult {
     //Exercise caution here because we do not want to inadvertently introduce something that
     //cannot be serialized into the sandbox. So serialize out our data here instead of in
     //the run callback.
-    val sandbox = Sandbox(classRegistry.toClassLoader())
+    val class_loader = classRegistry.toClassLoader()
+    val sandbox = Sandbox(class_loader)
     val data = StandardSandboxData(entryPoints, filterTypes)
 
     //Mark all classes from the registry as available in the sandbox.
     for(e <- classRegistry; class_name = e.description.javaClassName)
       sandbox.context.addClassPermission(AccessType.PERMIT, Mode.NORMAL, class_name)
+
+    //TODO: Need to add add'l classes/jars in the compiler settings to the sandbox's permissions.
 
     fnMutateSandbox(sandbox)
 

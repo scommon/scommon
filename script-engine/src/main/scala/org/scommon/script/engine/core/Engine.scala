@@ -175,4 +175,13 @@ trait Engine[+S <: CompilerSpecificSettings, +T] extends Closeable {
   def details: EngineDetails[S]
   def settings: CompilerSettings[S]
   def generator: Generator[CompilerSource[T], CompilerContext]
+
+  def push[CS >: CompilerSource[T]](source: CS) =
+    generator.push(source)
+  def push[CS >: CompilerSource[T]](source: Iterable[CS]) =
+    generator.push(source)
+  def push[CS >: CompilerSource[T]](context: CompilerContext, source: CS) =
+    generator.push(Some(context), source)
+  def push[CS >: CompilerSource[T]](context: CompilerContext, source: Iterable[CS]) =
+    generator.push(Some(context), source)
 }

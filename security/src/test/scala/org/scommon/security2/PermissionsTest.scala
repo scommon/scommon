@@ -4,6 +4,9 @@ import org.scalatest.junit.JUnitRunner
 import org.scalatest.{SeveredStackTraces, FunSuite}
 import org.junit.runner.RunWith
 import org.scalatest.matchers.ShouldMatchers
+import java.security.{CodeSigner, CodeSource, Policy}
+import java.net.{SocketPermission, URL}
+import java.util.{UUID, PropertyPermission}
 
 @RunWith(classOf[JUnitRunner])
 class PermissionsTest extends FunSuite
@@ -44,6 +47,38 @@ with SeveredStackTraces {
     Sandbox.run {
       SecurityManager.isAnyInstalled should be (false)
     }
+  }
+
+  test("WrappedBasicPermission.equals() behaves correctly") {
+    val wrapped = Permission("foo")
+    wrapped.isInstanceOf[WrappedBasicPermission] should be (true)
+
+    val basic = new java.security.SecurityPermission("foo")
+    wrapped should not equal (basic)
+  }
+
+  test("WrappedJavaPermission.equals() behaves correctly") {
+    val wrapped = Permission("java.security.SecurityPermission", "foo")
+    wrapped.isInstanceOf[WrappedJavaPermission] should be (true)
+
+    val basic = new java.security.SecurityPermission("foo")
+    wrapped should equal (basic)
+  }
+
+  test("Default security profile can be parsed correctly") {
+    val profile = SecurityProfile.default
+    profile.name should be ("basic")
+
+    SecurityProfile.get("basic") should equal (Some(profile))
+    SecurityProfile("basic") should equal (profile)
+    SecurityProfile.get(s"a-profile-that-should-never-exist-${UUID.randomUUID().toString}") should be(None)
+    evaluating { SecurityProfile(s"a-profile-that-should-never-exist-${UUID.randomUUID().toString}") } should produce [IllegalStateException]
+
+    val perms = profile.grants.permissions
+    perms should contain (Permission(new PropertyPermission("*", "read")))
+    perms should contain (Permission(new SocketPermission("localhost:1024-", "accept,connect,listen")))
+    perms should contain (Permission(new RuntimePermission("reflectionFactoryAccess")))
+
   }
 }
 

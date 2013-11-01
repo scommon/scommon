@@ -1,13 +1,25 @@
 package org.scommon.io
 
 import java.io.File
+import java.nio.file.Paths
 import scala.collection._
 
 import scala.language.implicitConversions
 
 object PathUtil {
+  //Holds cached versions of the queries. It's better to call the queryXXX versions if you
+  //anticipate the values changing over the life time of your running application.
   val tempDirectory = querySystemTempDirectory
   val userTempDirectory = querySystemUserTempDirectory
+  val userHomeDirectory = queryUserHomeDirectory
+  val fileSeparator = queryFileSeparator
+  val applicationDirectory = queryApplicationDirectory
+
+  @inline def queryFileSeparator: String = File.separator
+  @inline def queryUserHomeDirectory: String = System.getProperty("user.home")
+
+  @inline def queryApplicationDirectory: String = System.getProperty("user.dir")
+  @inline def queryWorkingDirectory: String = Paths.get("").toAbsolutePath.toString
 
   /** Requests the system's default temporary directory. **/
   @inline def querySystemTempDirectory: String = System.getProperty("java.io.tmpdir")

@@ -157,7 +157,7 @@ extends Engine[Scala, T] {
             scalaClassName         = sym.fullNameString //sym.fullNameString //sym.typeOfThis.toLongString
           , javaClassName          = true_java_class_name
           , javaClassFileName      = true_java_class_name.replaceAllLiterally(".", "/") + ".class"
-          , purportedJavaClassName = (if (sym.isClass || (sym.isModule && !sym.isMethod)) sym.javaBinaryName else sym.javaSimpleName).toString
+          , purportedJavaClassName = (if (sym.isClass || (sym.isModule && !sym.isMethod)) sym.javaClassName else sym.javaSimpleName).toString
         )
 
         //Hold on to the list of discovered classes.

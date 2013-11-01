@@ -1,18 +1,16 @@
 package org.scommon.security2
 
-import java.security._
-import java.util.concurrent.locks.ReentrantLock
-import org.scommon.security2.wildfly.WildFlySecurityManager
+import java.security.{AccessController, PrivilegedAction}
 
 object SecurityManager {
   def isAnyInstalled: Boolean =
     System.getSecurityManager ne null
 
-  def disabled[T](callback: => T): T = {
+  def unprivileged[T](callback: => T): T = {
     callback
   }
 
-  def enabled[T](callback: => T)(implicit context: Context): T = {
+  def privileged[T](callback: => T)(implicit context: SecurityContext): T = {
     AccessController.doPrivileged[T](new PrivilegedAction[T] {
       def run(): T = {
         callback

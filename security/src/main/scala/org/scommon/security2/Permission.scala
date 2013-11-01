@@ -24,6 +24,8 @@ trait Permission {
 }
 
 object Permission {
+  val EMPTY: Permission = null
+
   private[this] def attemptToInstantiate(cls: Class[_], name: String, actions: String): Option[JPermission] = {
     type PermutationFilter = (String, String) => Boolean
     val PARAMETER_PERMUTATIONS: LinearSeq[(LinearSeq[String], PermutationFilter)] = LinearSeq(
@@ -74,21 +76,46 @@ object Permission {
       }
   }
 
+  def apply(permission: JPermission): Permission =
+    fromJava(permission)
+
   implicit def fromJava(permission: JPermission): Permission =
     new WrappedJavaPermission(permission)
 }
 
 @SerialVersionUID(23490821123098L)
-class WrappedJavaPermission(val java_permission: JPermission) extends Permission {
+sealed class WrappedJavaPermission(val java_permission: JPermission) extends Permission {
+  override def toString = s"WrappedJavaPermission${java_permission.toString}"
   override def hashCode() = java_permission.hashCode()
-  override def equals(obj: Any) = java_permission.equals(obj)
+  override def equals(obj: Any) = obj match {
+    case o: WrappedJavaPermission =>
+      java_permission.equals(o.java_permission)
+    case o: java.security.Permission =>
+      java_permission.equals(o)
+    case o: Permission =>
+      java_permission.equals(o.asJavaPermission())
+    case _ =>
+      false
+  }
 
   def asJavaPermission(): JPermission =
     java_permission
 }
 
 @SerialVersionUID(12312938023234L)
-class WrappedBasicPermission(val name: String, val actions: String = null) extends JBasicPermission(name, if (actions ne null) actions else "") with Permission {
+sealed class WrappedBasicPermission(val name: String, val actions: String = null) extends JBasicPermission(name, if (actions ne null) actions else "") with Permission {
+  override def toString = s"WrappedBasicPermission${super.toString}"
+  override def equals(obj: Any) = obj match {
+    case o: WrappedJavaPermission =>
+      super.equals(o.java_permission)
+    case o: java.security.Permission =>
+      super.equals(o)
+    case o: Permission =>
+      super.equals(o.asJavaPermission())
+    case _ =>
+      false
+  }
+
   def asJavaPermission(): JPermission =
     this
 }

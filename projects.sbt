@@ -30,6 +30,7 @@ lazy val reactive      = Module("reactive")
 
 lazy val security      = Module("security")
   .dependsOn(core % "compile")
+  .dependsOn(io % "compile")
   .dependsOn(logging % "compile")
 
 lazy val platform      = Module("platform")

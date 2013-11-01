@@ -277,18 +277,25 @@ case class MutableSandbox(
     })
 
     val loader = service.initClassLoader(classLoader, using_context)
-    Thread.currentThread().setContextClassLoader(loader)
-    val result = service.runSandboxed(classOf[SandboxedEnvironmentForRunningCallables[T]], using_context, loader, out.toByteArray)
 
-    val ret = result.get().asInstanceOf[Try[T]] match {
-      case Success(value) =>
-        value
-      case Failure(thrown) =>
-        handlers.exceptionReceived(this, thrown)
-        default
+    val previous_class_loader = Thread.currentThread().getContextClassLoader()
+    try {
+      Thread.currentThread().setContextClassLoader(loader)
+
+      val result = service.runSandboxed(classOf[SandboxedEnvironmentForRunningCallables[T]], using_context, loader, out.toByteArray)
+
+      val ret = result.get().asInstanceOf[Try[T]] match {
+        case Success(value) =>
+          value
+        case Failure(thrown) =>
+          handlers.exceptionReceived(this, thrown)
+          default
+      }
+
+      ret
+    } finally {
+      Thread.currentThread().setContextClassLoader(previous_class_loader)
     }
-
-    ret
   }
 }
 

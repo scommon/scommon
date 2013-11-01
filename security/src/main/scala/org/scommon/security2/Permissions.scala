@@ -60,7 +60,7 @@ import scala.collection.JavaConversions._
     }
 
     val mutable_perms = mutable.ArrayBuffer[Permission]()
-    for(perm <- permissions_to_append) {
+    for(perm <- permissions_to_append; if perm ne null) {
       new_perms.add(perm.asJavaPermission())
       mutable_perms += perm
     }
