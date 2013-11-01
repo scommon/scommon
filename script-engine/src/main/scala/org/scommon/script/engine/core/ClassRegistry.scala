@@ -1,12 +1,8 @@
 package org.scommon.script.engine.core
 
 import scala.collection.generic.{FilterMonadic, CanBuildFrom}
-import scala.collection.GenTraversableOnce
-import scala.collection.immutable.HashMap
 import scala.collection._
 
-import net.datenwerke.sandbox.{SandboxLoader, SandboxLoaderEnhancer}
-import org.scommon.script.engine.core.CompileResult.SerializableDiscoveredEntryPoints
 
 object ClassContents {
   def apply(payload: Array[Byte]) =
@@ -59,6 +55,9 @@ private[core] sealed case class StandardClassEntry(
 ) extends ClassEntry
 
 object ClassRegistry {
+  private val MINIMAL_PROTECTION_DOMAIN =
+    new java.security.ProtectionDomain(null, new java.security.Permissions())
+
   def apply(entries: Iterable[ClassEntry]): ClassRegistry = {
     val m = mutable.HashMap[String, ClassEntry]()
     for (e <- entries)
@@ -69,6 +68,7 @@ object ClassRegistry {
 
 trait ClassRegistry extends FilterMonadic[ClassEntry, Iterable[ClassEntry]]
 with Serializable  {
+  import ClassRegistry._
 
   protected def entries: Map[String, ClassEntry]
 
@@ -88,7 +88,7 @@ with Serializable  {
     override def findClass(name: String): Class[_] = {
       entries.get(name) match {
         case Some(entry) =>
-          defineClass(name, entry.contents.payload, 0, entry.contents.size.toInt)
+          defineClass(name, entry.contents.payload, 0, entry.contents.size.toInt, MINIMAL_PROTECTION_DOMAIN)
         case _ =>
           throw new ClassNotFoundException(s"Unable to locate class named $name")
       }

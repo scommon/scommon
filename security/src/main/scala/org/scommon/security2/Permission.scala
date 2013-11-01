@@ -4,6 +4,8 @@ import java.security.{Permission => JPermission, BasicPermission => JBasicPermis
 
 import scala.language.implicitConversions
 import org.scommon.core.StringUtil
+import scala.collection.LinearSeq
+import scala.util.control.Breaks
 
 /**
  * @see [[java.security.Permission]]
@@ -22,40 +24,53 @@ trait Permission {
 }
 
 object Permission {
+  private[this] def attemptToInstantiate(cls: Class[_], name: String, actions: String): Option[JPermission] = {
+    type PermutationFilter = (String, String) => Boolean
+    val PARAMETER_PERMUTATIONS: LinearSeq[(LinearSeq[String], PermutationFilter)] = LinearSeq(
+        (LinearSeq(name, actions), (n, a) => (n ne null) && (a ne null))
+      , (LinearSeq(name),          (_, _) => true)
+      , (LinearSeq(name, actions), (_, _) => true)
+      , (LinearSeq(),              (_, _) => true)
+    )
+      for {
+        (permutation, filter) <- PARAMETER_PERMUTATIONS if filter(name, actions)
+        constructor_params = permutation.map(_ => classOf[String])
+      } {
+        try {
+          val constructor = cls.getConstructor(constructor_params:_*)
+          return Some(constructor.newInstance(permutation:_*).asInstanceOf[JPermission])
+        } catch {
+          case _: ReflectiveOperationException =>
+            //Do nothing
+        }
+      }
+    None
+  }
+
   def apply(tpe: String, name: String = null, actions: String = null): Permission = tpe match {
     case _ =>
       require(!((name eq null) && (actions ne null)), s"If actions is defined, then name must be as well")
+
       try {
         val cls = Class.forName(tpe)
         require(classOf[JPermission].isAssignableFrom(cls), s"$cls must be a subclass of ${classOf[JPermission]}")
 
-        val constructor_params =
-          if ((name ne null) && (actions ne null))
-            Seq(classOf[String], classOf[String])
-          else if (name ne null)
-            Seq(classOf[String])
-          else
-            Seq()
-
-        val constructor = cls.getConstructor(constructor_params:_*)
-
-        //Instantiate a java permission object and then wrap it and return the wrapped instance.
-        fromJava((
-          if ((name ne null) && (actions ne null))
-            constructor.newInstance(name, actions)
-          else if (name ne null)
-            constructor.newInstance(name)
-          else
-            constructor.newInstance()
-        ).asInstanceOf[JPermission])
+        attemptToInstantiate(cls, name, actions) match {
+          case Some(instance) =>
+            fromJava(instance)
+          case _ =>
+            if ((tpe ne null) && (name eq null) && (actions ne null))
+              new WrappedBasicPermission(tpe, actions)
+            else if ((tpe ne null) && (name eq null) && (actions eq null))
+              new WrappedBasicPermission(tpe)
+            else
+              throw new IllegalArgumentException(s"Unknown class $tpe")
+      }
       } catch {
-        case t: ReflectiveOperationException =>
-          if ((tpe ne null) && (name eq null) && (actions ne null))
-            new WrappedBasicPermission(tpe, actions)
-          else if ((tpe ne null) && (name eq null) && (actions eq null))
-            new WrappedBasicPermission(tpe)
-          else
-            throw new IllegalArgumentException(s"Unknown class $tpe", t)
+        case _: ClassNotFoundException =>
+          if (name ne null)
+            throw new IllegalArgumentException(s"Unknown class $tpe")
+          new WrappedBasicPermission(tpe, actions)
       }
   }
 
