@@ -12,7 +12,6 @@ import org.scommon.reactive._
 import org.scommon.script.engine.core._
 
 import scala.language.implicitConversions
-import scala.tools.nsc.Global
 
 
 private[engine] object ScalaEngine extends EngineFactory[Scala] {
@@ -195,7 +194,7 @@ extends Engine[Scala, T] {
       , runsRightAfterPhase = Some(CompilerPhase.Pickler)
       , runsBeforePhases    = List(CompilerPhase.Erasure)
       , classFilter       = new ClassFilter {
-        def apply(global: Global)(s: global.type#Symbol, t: global.type#Type, description: ClassDescription): Unit =
+        def apply(global: nsc.Global)(s: global.Symbol, t: global.Type, description: ClassDescription): Unit =
           class_filter(global)(s, t, description)
       }
     )
