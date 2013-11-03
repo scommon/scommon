@@ -3,10 +3,15 @@ package org.scommon.script.engine.core
 import scala.collection.generic.{FilterMonadic, CanBuildFrom}
 import scala.collection._
 
+import org.scommon.security.SecurityContext
+
 
 object ClassContents {
   def apply(payload: Array[Byte]) =
-    StandardClassContents(payload.length, payload)
+    StandardClassContents(() => payload.length, () => payload)
+
+  def apply(size: => Long)(payload: => Array[Byte]) =
+    StandardClassContents(() => size, () => payload)
 }
 
 trait ClassContents extends Serializable {
@@ -16,9 +21,12 @@ trait ClassContents extends Serializable {
 
 @SerialVersionUID(234242438L)
 private[core] sealed case class StandardClassContents(
-    size: Long
-  , payload: Array[Byte]
-) extends ClassContents
+    eventual_size: () => Long
+  , eventual_payload: () => Array[Byte]
+) extends ClassContents {
+  lazy val size: Long = eventual_size()
+  lazy val payload: Array[Byte] = eventual_payload()
+}
 
 object ClassDescription {
   def apply(scalaClassName: String, javaClassName: String, javaClassFileName: String, purportedJavaClassName: String): ClassDescription =
@@ -84,11 +92,13 @@ with Serializable  {
   def withFilter(p: (ClassEntry) => Boolean) =
     entries.values.withFilter(p)
 
-  def toClassLoader(parent: ClassLoader = Thread.currentThread().getContextClassLoader()): ClassLoader = new ClassLoader(parent) {
+  def toClassLoader(parent: ClassLoader = Thread.currentThread().getContextClassLoader())(implicit context: SecurityContext): ClassLoader = new ClassLoader(parent) {
+    val protection_domain = context.toProtectionDomain(this)
+
     override def findClass(name: String): Class[_] = {
       entries.get(name) match {
         case Some(entry) =>
-          defineClass(name, entry.contents.payload, 0, entry.contents.size.toInt, MINIMAL_PROTECTION_DOMAIN)
+          defineClass(name, entry.contents.payload, 0, entry.contents.size.toInt, protection_domain)
         case _ =>
           throw new ClassNotFoundException(s"Unable to locate class named $name")
       }

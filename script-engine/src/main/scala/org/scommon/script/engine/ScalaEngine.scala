@@ -5,13 +5,14 @@ import _root_.scala.collection._
 import scala.reflect.io.{Directory, PlainDirectory}
 import scala.reflect.internal.util.{NoPosition => SNoPosition, Position => SPosition}
 
-import java.nio.file.LinkOption
+import java.nio.file.{Paths, LinkOption}
 
 import org.scommon.core._
 import org.scommon.reactive._
 import org.scommon.script.engine.core._
 
 import scala.language.implicitConversions
+import scala.tools.nsc.Global
 
 
 private[engine] object ScalaEngine extends EngineFactory[Scala] {
@@ -77,10 +78,24 @@ extends Engine[Scala, T] {
       s
     }
 
-    val scala_type_filter =
-      new ScalaTypeFilter(settings.typeFilters)
+    val class_filter_class_descriptions =
+      mutable.HashMap[String, ClassDescription]()
 
-    val compiler = ScalaCompiler(compiler_settings, Seq(scala_type_filter) ++ settings.specific.phaseInterceptors) { msg =>
+    val class_filter_discovered_types =
+      mutable.HashMap[String, mutable.LinkedHashSet[ClassDescription]]()
+
+    val class_filter_discovered_entry_points =
+      mutable.LinkedHashSet[ClassDescription]()
+
+    val class_filters =
+      createStandardClassFilterPhaseIntercepts(
+          settings.typeFilters
+        , class_filter_class_descriptions
+        , class_filter_discovered_types
+        , class_filter_discovered_entry_points
+      )
+
+    val compiler = ScalaCompiler(compiler_settings, class_filters ++ settings.specific.phaseInterceptors) { msg =>
       context.handlers.messageReceived(this, msg)
     } { progress =>
       context.handlers.progressUpdate(this, progress)
@@ -88,94 +103,53 @@ extends Engine[Scala, T] {
 
     compiler.compile(sources)
 
-    val discovered_types: CompileResult.SerializableDiscoveredTypeMap = {
-      for ((name, descriptions) <- scala_type_filter.discovered)
+    val transformed_discovered_types: CompileResult.SerializableDiscoveredTypeMap = {
+      for ((name, descriptions) <- class_filter_discovered_types)
         yield (name, descriptions.toIterable)
     }.toMap withDefaultValue Iterable()
 
-    val discovered_entry_points =
-      scala_type_filter.discoveredEntryPoints
-
-    val descriptions =
-      scala_type_filter.descriptions
+    //The idea here is to locate the bytes associated with found class descriptions.
+    //Go through the descriptions and find the associated class files.
 
     val entries = mutable.Stack[ClassEntry]()
-    val s = mutable.Stack[nsc.io.AbstractFile]()
-    s.push(output_dir)
 
-    while(s.nonEmpty) {
-      val next = s.pop()
+    for ((_, description) <- class_filter_class_descriptions) {
+      //Walk the virtual directories and find the associated class files by splitting the .javaClassFileName by
+      //a forward slash and then starting at the output_dir, walk forward until we find the class file.
+      val split = description.javaClassFileName.split('/').zipWithIndex
+      val last = if (split.length > 0) split.length - 1 else 0
+      val compiled_class = split.foldLeft(output_dir){ case (dir, (nxt, idx)) => dir.lookupPath(nxt, idx < last) }
 
-      for (candidate <- next.iterator) {
-        if (candidate.isDirectory) {
-          s.push(candidate)
-        } else {
-          val output_path = output_dir.canonicalPath
-          val candidate_path = candidate.canonicalPath
-          val path = if (candidate_path.startsWith(output_path)) candidate_path.substring(output_path.length()) else candidate_path
-          val path_ex = if (path.startsWith("/")) path.substring(1) else path
+      //It's possible that classes will show up in the list of classes but not have a backing class file. If that's the case, then
+      //just skip it. I'm not exactly sure why this is the case.
 
-          //Lookup the corresponding description.
-          descriptions.get(path_ex) match {
-            case Some(description) =>
-              entries push ClassEntry(description, ClassContents(candidate.toByteArray))
-            case _ =>
-              throw new IllegalStateException(s"Scala scripting engine was unable to locate the associated class description for $path_ex")
-          }
+      //if (compiled_class eq null) {
+      //  throw new IllegalStateException(s"Scala scripting engine was unable to locate the associated compiled class for ${description.javaClassFileName}")
+      //}
 
-          println(s"compiled: ${candidate.canonicalPath}\nbytes: ${candidate.toByteArray.length}")
-        }
+      if (compiled_class ne null) {
+        entries push ClassEntry(description, ClassContents(compiled_class.sizeOption.getOrElse(0))(compiled_class.toByteArray))
       }
     }
-    s.clear()
 
     //Notify everyone that we've completed compilation.
-    settings.handlers.sourceCompiled(this, CompileResult(discovered_entry_points, discovered_types, ClassRegistry(entries)))
+    settings.handlers.sourceCompiled(this, CompileResult(class_filter_discovered_entry_points, transformed_discovered_types, ClassRegistry(entries)))
   }
 
-  private[this] class ScalaTypeFilter(val typeFilters: Iterable[CompilerTypeFilter]) extends ScalaPhaseIntercept {
-    require(typeFilters.isTraversableAgain, "typeFilters must be iterable more than once")
+  private[this] trait ClassFilter {
+    def apply(global: nsc.Global)(s: global.Symbol, t: global.Type, description: ClassDescription): Unit
+  }
 
-    val name = "filter-for-types-implementing-trait"
-    override val runsBeforePhases    = List(CompilerPhase.Erasure)
-    override val runsAfterPhases     = List(CompilerPhase.Typer)
-    override val runsRightAfterPhase = Some(CompilerPhase.Pickler)
+  private[this] def createStandardClassFilterPhaseIntercepts(
+    typeFilters: Iterable[CompilerTypeFilter],
+    descriptions: mutable.HashMap[String, ClassDescription],
+    discoveredTypes: mutable.HashMap[String, mutable.LinkedHashSet[ClassDescription]],
+    discoveredEntryPoints: mutable.LinkedHashSet[ClassDescription]
+  ) = {
+    val discovered = discoveredTypes withDefaultValue mutable.LinkedHashSet()
 
-    val descriptions = mutable.HashMap[String, ClassDescription]()
-    val discovered = mutable.HashMap[String, mutable.LinkedHashSet[ClassDescription]]() withDefaultValue mutable.LinkedHashSet()
-    val discoveredEntryPoints = mutable.LinkedHashSet[ClassDescription]()
-
-    /** Called when a class or module is found. */
-    def typeDiscovered(global: nsc.Global)(s: global.Symbol, t: global.Type) = {
+    def class_filter(global: nsc.Global)(s: global.Symbol, t: global.Type, description: ClassDescription): Unit = {
       import global._
-
-      def addDescription(sym: global.Symbol): ClassDescription = {
-        val true_java_class_name =
-          ScalaCompilerUtils.trueJavaClassName(global)(sym)
-
-        val description = ClassDescription(
-            scalaClassName         = sym.fullNameString //sym.fullNameString //sym.typeOfThis.toLongString
-          , javaClassName          = true_java_class_name
-          , javaClassFileName      = true_java_class_name.replaceAllLiterally(".", "/") + ".class"
-          , purportedJavaClassName = (if (sym.isClass || (sym.isModule && !sym.isMethod)) sym.javaClassName else sym.javaSimpleName).toString
-        )
-
-        //Hold on to the list of discovered classes.
-        descriptions(description.javaClassFileName) = description
-
-        description
-      }
-
-      //Create and register a class description for this symbol.
-      val description =
-        addDescription(s)
-
-      //Modules also have an associated module class that should also be added.
-      val module_class_description =
-        if (s.isModule)
-          addDescription(s.moduleClass)
-        else
-          null
 
       //Examine each incoming type and see if there's a corresponding type filter
       //defined whose tag is a supertype of the provided discovered type.
@@ -200,6 +174,75 @@ extends Engine[Scala, T] {
           params = method.paramss.flatten.map(_.typeOfThis) if !params.isEmpty && params.size == 1 && params.head =:= type_of_array_string
         }
           discoveredEntryPoints += description
+      }
+    }
+
+    //Creates 2 phase intercepts that look for classes created at multiple points in the compilation process.
+    //This is b/c the scala compiler produces different .class files at different points and we'll need to
+    //log each of them for later use.
+    val extra_filter_pass = new ScalaClassFilter(
+        descriptions        = descriptions
+      , name                = "extra-filter-pass"
+      , runsAfterPhases     = List(CompilerPhase.LambdaLift)
+      , runsRightAfterPhase = Some(CompilerPhase.LambdaLift)
+      , runsBeforePhases    = List(CompilerPhase.Mixin)
+    )
+
+    val type_filter_pass = new ScalaClassFilter(
+        descriptions        = descriptions
+      , name                = "type-filter-pass"
+      , runsAfterPhases     = List(CompilerPhase.Typer)
+      , runsRightAfterPhase = Some(CompilerPhase.Pickler)
+      , runsBeforePhases    = List(CompilerPhase.Erasure)
+      , classFilter       = new ClassFilter {
+        def apply(global: Global)(s: global.type#Symbol, t: global.type#Type, description: ClassDescription): Unit =
+          class_filter(global)(s, t, description)
+      }
+    )
+
+    Seq(type_filter_pass, extra_filter_pass)
+  }
+
+  private[this] class ScalaClassFilter(
+               val descriptions: mutable.HashMap[String, ClassDescription]
+    ,          val name: String
+    , override val runsBeforePhases: Iterable[CompilerPhase.EnumVal]
+    , override val runsAfterPhases: Iterable[CompilerPhase.EnumVal]
+    , override val runsRightAfterPhase: Option[CompilerPhase.EnumVal]
+    ,              classFilter: ClassFilter = null
+  ) extends ScalaPhaseIntercept {
+    /** Called when a class or module is found. */
+    def classOrModuleDiscovered(global: nsc.Global)(s: global.Symbol, t: global.Type) = {
+      import global._
+
+      def addDescription(sym: global.Symbol): ClassDescription = {
+        val true_java_class_name =
+          ScalaCompilerUtils.trueJavaClassName(global)(sym)
+
+        val description = ClassDescription(
+            scalaClassName         = sym.fullNameString //sym.fullNameString //sym.typeOfThis.toLongString
+          , javaClassName          = true_java_class_name
+          , javaClassFileName      = true_java_class_name.replaceAllLiterally(".", "/") + ".class"
+          , purportedJavaClassName = (if (sym.isClass || (sym.isModule && !sym.isMethod)) sym.javaClassName else sym.javaSimpleName).toString
+        )
+
+        //Hold on to the list of discovered classes.
+        if (!descriptions.contains(description.javaClassFileName))
+          descriptions(description.javaClassFileName) = description
+
+        description
+      }
+
+      //Create and register a class description for this symbol.
+      val description =
+        addDescription(s)
+
+      //Modules also have an associated module class that should also be added.
+      if (s.isModule)
+        addDescription(s.moduleClass)
+
+      if (classFilter ne null) {
+        classFilter(global)(s, t, description)
       }
     }
 
@@ -234,7 +277,7 @@ extends Engine[Scala, T] {
           tree match {
             case _: ClassDef | _: ModuleDef
               if isDefined(tree.symbol) && (isClass(tree.symbol) || isModule(tree.symbol)) =>
-              typeDiscovered(global)(tree.symbol, tree.symbol.typeOfThis)
+              classOrModuleDiscovered(global)(tree.symbol, tree.symbol.typeOfThis)
             case _ =>
           }
           super.traverse(tree)

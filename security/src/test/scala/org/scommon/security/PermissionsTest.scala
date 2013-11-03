@@ -1,4 +1,4 @@
-package org.scommon.security2
+package org.scommon.security
 
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{SeveredStackTraces, FunSuite}

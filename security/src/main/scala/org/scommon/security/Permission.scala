@@ -1,11 +1,10 @@
-package org.scommon.security2
+package org.scommon.security
 
 import java.security.{Permission => JPermission, BasicPermission => JBasicPermission}
 
-import scala.language.implicitConversions
-import org.scommon.core.StringUtil
 import scala.collection.LinearSeq
-import scala.util.control.Breaks
+
+import scala.language.implicitConversions
 
 /**
  * @see [[java.security.Permission]]

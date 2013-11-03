@@ -1,15 +1,20 @@
-package org.scommon.security2
+package org.scommon.security
 
 import java.security.{Permission => JPermission, Permissions => JPermissions}
-import java.net.URL
+import java.net.URI
 
 object SecurityContext {
-  def apply(permitAll: Boolean = false, grants: Permissions = Permissions()) =
-    new SecurityContextImpl(permitAll, grants)
+  val PERMIT_ALL = apply(permitAll = true)
+
+  def apply(uri: URI = null, codeSigners: Array[java.security.CodeSigner] = null, permitAll: Boolean = false, grants: Permissions = Permissions()) =
+    new SecurityContextImpl(uri, codeSigners, permitAll, grants)
 }
 
 trait SecurityContext extends Serializable {
   def grants: Permissions
+
+  def uri: URI = null
+  def codeSigners: Array[java.security.CodeSigner] = null
 
   def permitAll: Boolean = false
 
@@ -28,23 +33,18 @@ trait SecurityContext extends Serializable {
     }
   }
 
-  def toProtectionDomain(url: URL = null, codeSigners: Array[java.security.CodeSigner] = null, classLoader: ClassLoader = null): java.security.ProtectionDomain = {
-    val cs = new java.security.CodeSource(url, codeSigners)
+  def toProtectionDomain(classLoader: ClassLoader = null): java.security.ProtectionDomain = {
+    val cs = new java.security.CodeSource(if (uri ne null) uri.toURL else null, codeSigners)
     val perms = toJavaPermissions()
     if (classLoader eq null)
       new java.security.ProtectionDomain(cs, perms)
     else
-      new java.security.ProtectionDomain(cs, perms, SecurityManager.privilegedContextClassLoader, Array())
+      new java.security.ProtectionDomain(cs, perms, classLoader, Array())
   }
 
-  def toAccessControlContext(useContextClassLoader: Boolean = false): java.security.AccessControlContext = {
+  def toAccessControlContext(classLoader: ClassLoader = null): java.security.AccessControlContext = {
     //http://media.techtarget.com/tss/static/articles/content/dm_security/Java2Sec.pdf
-    val pd_grants = toProtectionDomain(
-      classLoader =
-        if (useContextClassLoader)
-          SecurityManager.privilegedContextClassLoader
-        else null
-    )
+    val pd_grants = toProtectionDomain(classLoader)
 
     val combiner = new java.security.DomainCombiner {
       def combine(currentDomains: Array[java.security.ProtectionDomain], assignedDomains: Array[java.security.ProtectionDomain]) = {
@@ -63,7 +63,9 @@ trait SecurityContext extends Serializable {
 }
 
 @SerialVersionUID(29809023490L)
-private[security2] sealed case class SecurityContextImpl(
-    override val permitAll: Boolean
+private[security] sealed case class SecurityContextImpl(
+    override val uri: URI
+  , override val codeSigners: Array[java.security.CodeSigner]
+  , override val permitAll: Boolean
   ,              grants: Permissions
 ) extends SecurityContext

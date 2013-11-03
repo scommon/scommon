@@ -1,4 +1,4 @@
-package org.scommon.security2
+package org.scommon.security
 
 import java.security.{Permission => JPermission, Permissions => JPermissions, PermissionCollection => JPermissionCollection}
 
@@ -40,7 +40,7 @@ trait Permissions extends Serializable {
 }
 
 @SerialVersionUID(798267429369L)
-private[security2] sealed class PermissionsImpl(val permissions: Seq[Permission] = Seq(), private[this] val my_permissions: JPermissions = new JPermissions()) extends Permissions {
+private[security] sealed class PermissionsImpl(val permissions: Seq[Permission] = Seq(), private[this] val my_permissions: JPermissions = new JPermissions()) extends Permissions {
 import scala.collection.JavaConversions._
   override def hashCode() = my_permissions.hashCode()
   override def equals(obj: Any) = my_permissions.equals(obj)

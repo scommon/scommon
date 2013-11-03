@@ -1,12 +1,15 @@
-package org.scommon.security2
+package org.scommon.security
 
 import scala.util.{Success, Failure, Try}
-import com.typesafe.config.{ConfigObject, ConfigFactory, Config}
+
 import java.util.concurrent.locks.ReentrantLock
 import java.io.FilePermission
 import java.nio.file.Paths
-import org.scommon.core._
+
+import com.typesafe.config.{ConfigObject, ConfigFactory, Config}
+
 import org.scommon.io.PathUtil
+import org.scommon.core._
 
 import scala.language.implicitConversions
 
@@ -144,14 +147,15 @@ object SecurityProfile {
             } yield perm
           )
 
-          def process_special_directory(obj: ConfigObject, directory: => String): Permission = {
+          def process_special_directory(obj: ConfigObject, directory: => String): Seq[Permission] = {
             val special = obj.toConfig.withFallback(special_directory_fallback)
             val enabled = special.getBoolean("enabled")
             val actions = special.getString("actions")
+            val path = Paths.get(directory).toAbsolutePath.toString
             if (enabled)
-              Permission(new FilePermission(recursivePath(Paths.get(directory).toAbsolutePath.toString), actions))
+              Seq(Permission(new FilePermission(path, actions)), Permission(new FilePermission(recursivePath(path), actions)))
             else
-              Permission.EMPTY
+              Seq()
           }
 
           def recursivePath(path: String): String = {
@@ -162,12 +166,11 @@ object SecurityProfile {
               path + sep + "-"
           }
 
-          val permissions = process_permissions(grants) ++ (
-              process_special_directory(home_dir, PathUtil.queryUserHomeDirectory)
-            , process_special_directory(temp_dir, PathUtil.querySystemUserTempDirectory)
-            , process_special_directory(work_dir, PathUtil.queryWorkingDirectory)
-            , process_special_directory(work_dir, PathUtil.queryApplicationDirectory)
-          )
+          val permissions = process_permissions(grants) ++
+            process_special_directory(home_dir, PathUtil.queryUserHomeDirectory) ++
+            process_special_directory(temp_dir, PathUtil.querySystemUserTempDirectory) ++
+            process_special_directory(work_dir, PathUtil.queryWorkingDirectory) ++
+            process_special_directory(work_dir, PathUtil.queryApplicationDirectory)
 
           val profile = SecurityProfile(name, description, permissions)
 
