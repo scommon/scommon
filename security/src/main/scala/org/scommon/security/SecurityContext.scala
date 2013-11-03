@@ -4,8 +4,6 @@ import java.security.{Permission => JPermission, Permissions => JPermissions}
 import java.net.URI
 
 object SecurityContext {
-  val PERMIT_ALL = apply(permitAll = true)
-
   def apply(uri: URI = null, codeSigners: Array[java.security.CodeSigner] = null, permitAll: Boolean = false, grants: Permissions = Permissions()) =
     new SecurityContextImpl(uri, codeSigners, permitAll, grants)
 }

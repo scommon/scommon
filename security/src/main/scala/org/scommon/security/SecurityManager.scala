@@ -15,7 +15,7 @@ object SecurityManager {
       def run(): T = {
         callback
       }
-    }, SecurityContext.PERMIT_ALL.toAccessControlContext(Thread.currentThread().getContextClassLoader))
+    }, CONTEXT_PERMIT_ALL.toAccessControlContext(Thread.currentThread().getContextClassLoader))
   }
 
   def privileged[T](callback: => T)(implicit context: SecurityContext): T =

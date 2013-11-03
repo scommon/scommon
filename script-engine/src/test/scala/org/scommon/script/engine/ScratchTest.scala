@@ -28,7 +28,7 @@ import org.scommon.core._
 import org.scommon.script.engine.core._
 
 import org.scommon.reactive._
-import org.scommon.security
+import org.scommon.security._
 import org.scommon.security.Sandbox
 
 
@@ -106,9 +106,9 @@ class ScratchTest extends FunSuite
               main      = reflected.reflectMethod(method)
             } {
               //println(cls)
-              Sandbox.run(cl) {
+              Sandbox.run {
                 main(Array[String]())
-              }(org.scommon.security.CONTEXT_DEFAULT)
+              }
             }
           }
 
@@ -162,8 +162,8 @@ class ScratchTest extends FunSuite
             |      //println(System.getProperty("path.separator"))
             |      //new java.io.File("${PathUtil.queryApplicationDirectory.replaceAllLiterally("\\", "\\\\")}").listFiles.foreach(println)
             |      //new java.io.File(".").listFiles.foreach(println)
-            |      //import scala.sys.process._
-            |      //Seq("echo", "Hi!").!
+            |      import scala.sys.process._
+            |      Seq("echo", "Hi!").!
             |    }
             |  }
             |}
