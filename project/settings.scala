@@ -30,7 +30,7 @@ object Settings {
     )
   )
 
-  val scalaVersion       = "2.10.2"
+  val scalaVersion       = "2.10.3"
 
   val scalacOptions      = Seq("-deprecation", "-unchecked", "-feature", "-Xelide-below", "900")
   val javacOptions       = Seq("-Xlint:unchecked")
