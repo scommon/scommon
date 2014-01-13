@@ -40,16 +40,12 @@ class ScratchTest extends FunSuite
 
   val PARENT_WORKING_DIR = Path(s"scratch-test").toUserTemp
 
-  override protected def beforeAll() {
-    privileged {
-      PARENT_WORKING_DIR.mkdirs()
-    }
+  override protected def beforeAll() = {
+    PARENT_WORKING_DIR.mkdirs()
   }
 
-  override protected def afterAll() {
-    privileged {
-      PARENT_WORKING_DIR.deleteAll
-    }
+  override protected def afterAll() = {
+    PARENT_WORKING_DIR.deleteAll
   }
 
   def privileged(fn: => Unit): Unit = {
@@ -57,13 +53,14 @@ class ScratchTest extends FunSuite
   }
 
   def privilegedWithSecurityManager(fn: => Unit): Unit = {
+    //This works because we will have created an AccessControlContext before a
+    //SecurityManager is set and are then resetting it within the same doPrivileged().
     org.scommon.security.SecurityManager.privilegedWithoutContext({
-      val old = System.getSecurityManager
-      System.setSecurityManager(new java.lang.SecurityManager())
+      val old = org.scommon.security.SecurityManager.installDefault()
       try {
         fn
       } finally {
-        System.setSecurityManager(old)
+        org.scommon.security.SecurityManager.install(old)
       }
     })
   }
