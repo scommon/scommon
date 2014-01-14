@@ -118,6 +118,12 @@ object SecurityProfile {
         |actions = ""
       """.stripMargin)
 
+    val system_path_fallback = ConfigFactory.parseString(
+      """
+        |enabled = false
+        |actions = ""
+      """.stripMargin)
+
     val permissions_fallback = ConfigFactory.parseString(
       """
         |type    = ""
@@ -133,6 +139,8 @@ object SecurityProfile {
         home_dir        = p_config.getObject("home-dir")
         temp_dir        = p_config.getObject("temp-dir")
         work_dir        = p_config.getObject("work-dir")
+        app_dir         = p_config.getObject("application-dir")
+        sys_path        = p_config.getObject("system-path")
         grants          = p_config.getObjectList("grants")
       } yield {
         try {
@@ -158,6 +166,25 @@ object SecurityProfile {
               Seq()
           }
 
+          def process_system_path(obj: ConfigObject): Seq[Permission] = {
+            val special = obj.toConfig.withFallback(system_path_fallback)
+            val enabled = special.getBoolean("enabled")
+            val actions = special.getString("actions")
+            if (enabled) {
+              try {
+                (
+                  for (path <- PathUtil.querySystemPath.split(PathUtil.queryPathSeparator.head).toSeq)
+                    yield Seq(Permission(new FilePermission(path, actions)), Permission(new FilePermission(recursivePath(path), actions)))
+                ).flatten
+              } catch {
+                case _: Throwable =>
+                  Seq()
+              }
+              //Seq(Permission(new FilePermission(path, actions)), Permission(new FilePermission(recursivePath(path), actions)))
+              Seq()
+            } else Seq()
+          }
+
           def recursivePath(path: String): String = {
             val sep = PathUtil.fileSeparator
             if (path.endsWith(sep))
@@ -167,10 +194,11 @@ object SecurityProfile {
           }
 
           val permissions = process_permissions(grants) ++
+            process_system_path(sys_path) ++
             process_special_directory(home_dir, PathUtil.queryUserHomeDirectory) ++
             process_special_directory(temp_dir, PathUtil.querySystemUserTempDirectory) ++
             process_special_directory(work_dir, PathUtil.queryWorkingDirectory) ++
-            process_special_directory(work_dir, PathUtil.queryApplicationDirectory)
+            process_special_directory(app_dir,  PathUtil.queryApplicationDirectory)
 
           val profile = SecurityProfile(name, description, permissions)
 

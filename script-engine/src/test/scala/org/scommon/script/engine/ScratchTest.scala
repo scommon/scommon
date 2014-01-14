@@ -79,33 +79,18 @@ class ScratchTest extends FunSuite
         //my.inMemory = false
         //my.outputDirectory = Paths.get(working.getAbsolutePath, s"${UUID.randomUUID().toString}")
         //my.outputDirectory.toFile.mkdirs()
+        //println(my.outputDirectory)
 
         my.handlers.progressUpdate = (_, progress) => {
           println(s"Progress: $progress")
         }
 
         my.handlers.sourceCompiled = (_, result) => {
-          import scala.reflect.runtime.universe
-          import scala.reflect.runtime.universe._
-
-          {
-            //Execute outside the sandbox
-            val cl = result.classRegistry.toClassLoader()
-            val runtime_mirror = universe.runtimeMirror(cl)
-
-            for {
-              entry_point <- result.entryPoints
-              //cls = Class.forName(entry_point.javaClassName, false, cl)
-              module    = runtime_mirror.staticModule(entry_point.scalaClassName)
-              obj       = runtime_mirror.reflectModule(module)
-              reflected = runtime_mirror.reflect(obj.instance)
-              method    = obj.symbol.typeSignature.member(newTermName("main")).asMethod
-              main      = reflected.reflectMethod(method)
-            } {
-              //println(cls)
-              Sandbox.run {
-                main(Array[String]())
-              }
+          //Execute all found main methods
+          for (main <- result.discoverMainMethods()) {
+            //println(cls)
+            Sandbox.run {
+              main(Array[String]())
             }
           }
 

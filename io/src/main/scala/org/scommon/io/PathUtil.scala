@@ -13,9 +13,11 @@ object PathUtil {
   val userTempDirectory = querySystemUserTempDirectory
   val userHomeDirectory = queryUserHomeDirectory
   val fileSeparator = queryFileSeparator
+  val pathSeparator = queryPathSeparator
   val applicationDirectory = queryApplicationDirectory
 
   @inline def queryFileSeparator: String = File.separator
+  @inline def queryPathSeparator: String = File.pathSeparator
   @inline def queryUserHomeDirectory: String = System.getProperty("user.home")
 
   @inline def queryApplicationDirectory: String = System.getProperty("user.dir")
@@ -24,6 +26,8 @@ object PathUtil {
   /** Requests the system's default temporary directory. **/
   @inline def querySystemTempDirectory: String = System.getProperty("java.io.tmpdir")
   @inline def querySystemUserTempDirectory: String = System.getProperty("java.io.tmpdir")
+
+  @inline def querySystemPath: String = System.getenv("PATH")
 
   @inline def toTemp(f: File): File = new File(tempDirectory, f.getPath)
   @inline def toUserTemp(f: File): File = new File(userTempDirectory, f.getPath)

@@ -1,6 +1,6 @@
 package org.scommon.security
 
-import java.security.{Permission => JPermission, Permissions => JPermissions}
+import java.security.{Permission => JPermission, Permissions => JPermissions, AllPermission}
 import java.net.URI
 
 object SecurityContext {
@@ -25,8 +25,9 @@ trait SecurityContext extends Serializable {
 
   def toJavaPermissions(): java.security.PermissionCollection = {
     if (!permitAll) grants.toJavaPermissions else {
-      val p = new JPermissions()
-      p.add(new java.security.AllPermission())
+      val all = new java.security.AllPermission()
+      val p = all.newPermissionCollection()
+      p.add(all)
       p
     }
   }
