@@ -13,7 +13,6 @@ import org.scommon.script.engine.core._
 
 import scala.language.implicitConversions
 
-
 private[engine] object ScalaEngine extends EngineFactory[Scala] {
   val instance = this
 
@@ -58,7 +57,7 @@ extends Engine[Scala, T] {
   }
 
   private[this] def process_source: PartialFunction[Any, Unit] = { case ((context: CompilerContext, (sources: Seq[CompilerSource[T]] @unchecked))) =>
-    sources.foreach(x => println(s"Compiling ${x.source}"))
+    //sources.foreach(x => println(s"Compiling ${x.source}"))
 
     val output_dir: nsc.io.AbstractFile = {
       if (settings.inMemory) {
@@ -95,9 +94,9 @@ extends Engine[Scala, T] {
       )
 
     val compiler = ScalaCompiler(compiler_settings, class_filters ++ settings.specific.phaseInterceptors) { msg =>
-      context.handlers.messageReceived(this, msg)
+      onMessageReceived(context, msg)
     } { progress =>
-      context.handlers.progressUpdate(this, progress)
+      onProgressUpdate(context, progress)
     }
 
     compiler.compile(sources)
@@ -132,7 +131,14 @@ extends Engine[Scala, T] {
     }
 
     //Notify everyone that we've completed compilation.
-    settings.handlers.sourceCompiled(this, CompileResult(class_filter_discovered_entry_points, transformed_discovered_types, ClassRegistry(entries)))
+    onSourceCompiled(
+        context
+      , CompileResult(
+          class_filter_discovered_entry_points
+        , transformed_discovered_types
+        , ClassRegistry(entries)
+      )
+    )
   }
 
   private[this] trait ClassFilter {

@@ -3,10 +3,11 @@ package org.scommon.script.engine.core
 import scala.collection._
 
 import java.io.{ByteArrayInputStream, File, InputStream}
+import java.net.URI
+
+import org.scommon.reactive.Generator
 
 import scala.language.implicitConversions
-import org.scommon.reactive.Generator
-import java.net.URI
 
 object CompilerSourceGenerator {
   type CompilerSourcesAvailable = (Iterable[CompilerSource[Any]]) => Unit

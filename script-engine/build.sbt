@@ -1,6 +1,9 @@
 
 libraryDependencies += "com.typesafe" % "config" % "1.0.2"
 
+libraryDependencies += "com.netflix.rxjava" % "rxjava-scala" % "0.16.1"
+
+
 
 libraryDependencies += "org.scalaj" % "scalaj-time_2.10.2" % "0.7"
 

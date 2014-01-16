@@ -41,6 +41,8 @@ object CompilerPhase extends Enum {
   val DeadCode                = EnumVal(27, "dce",                     "Dead Code")
   val GenJVM                  = EnumVal(28, "genJVM",                  "GenJVM")
 
+  val last: EnumVal = GenJVM
+
   def apply(phaseName: String): EnumVal =
     values.find(_.phaseName == phaseName).getOrElse(Unknown)
 

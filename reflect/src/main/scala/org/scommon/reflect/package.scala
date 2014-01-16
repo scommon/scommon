@@ -1,7 +1,5 @@
 package org.scommon
 
-import java.nio.file.Paths
-
 package object reflect {
   import scala.reflect.runtime.universe
   import scala.reflect.runtime.universe._
@@ -68,18 +66,18 @@ package object reflect {
   implicit val StringToDoubleConverter:  FieldConverter[String, Double]  = toConverter(x => java.lang.Double.parseDouble(x))
   implicit val AnyToStringConverter:     FieldConverter[Any, String]     = toConverter(x => x.toString)
 
-  implicit def NumericToIntConverter[T](implicit n: Numeric[T]): FieldConverter[T, Double] = toConverter(x => n.toInt(x))
-  implicit def NumericToLongConverter[T](implicit n: Numeric[T]): FieldConverter[T, Double] = toConverter(x => n.toLong(x))
-  implicit def NumericToFloatConverter[T](implicit n: Numeric[T]): FieldConverter[T, Double] = toConverter(x => n.toFloat(x))
+  implicit def NumericToIntConverter[T](implicit n: Numeric[T]): FieldConverter[T, Double]    = toConverter(x => n.toInt(x))
+  implicit def NumericToLongConverter[T](implicit n: Numeric[T]): FieldConverter[T, Double]   = toConverter(x => n.toLong(x))
+  implicit def NumericToFloatConverter[T](implicit n: Numeric[T]): FieldConverter[T, Double]  = toConverter(x => n.toFloat(x))
   implicit def NumericToDoubleConverter[T](implicit n: Numeric[T]): FieldConverter[T, Double] = toConverter(x => n.toDouble(x))
 
-  implicit val StringDefault = Default("")
-  implicit val ByteDefault = Default(0.toByte)
-  implicit val ShortDefault = Default(0.toShort)
-  implicit val IntDefault = Default(0)
-  implicit val LongDefault = Default(0L)
-  implicit val FloatDefault = Default(0.0f)
-  implicit val DoubleDefault = Default(0.0d)
-  implicit val AnyRefDefault = Default[AnyRef](null)
+  implicit val StringDefault    = Default("")
+  implicit val ByteDefault      = Default(0.toByte)
+  implicit val ShortDefault     = Default(0.toShort)
+  implicit val IntDefault       = Default(0)
+  implicit val LongDefault      = Default(0L)
+  implicit val FloatDefault     = Default(0.0f)
+  implicit val DoubleDefault    = Default(0.0d)
+  implicit val AnyRefDefault    = Default[AnyRef](null)
   implicit def OptionDefault[T] = Default[Option[T]](None)
 }

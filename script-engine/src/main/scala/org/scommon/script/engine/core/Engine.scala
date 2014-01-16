@@ -1,15 +1,20 @@
 package org.scommon.script.engine.core
 
-import org.scommon.core._
-import org.scommon.script.engine.{Scala, ScalaEngine}
 import com.typesafe.config.{ConfigFactory, Config}
 import scala.reflect.internal.MissingRequirementError
+import scala.collection.JavaConversions
 import java.util.concurrent.locks.ReentrantLock
 import java.net.URI
 import org.scommon.reactive.Generator
 import org.scommon.reflect._
+import rx.lang.scala.{Subscription, Observable}
+
+import org.scommon.core._
+import org.scommon.script.engine.{Scala, ScalaEngine}
 
 object Engine {
+  import scala.language.implicitConversions
+
   //Lazily gets the list of factories. Deliberately do *not* use lazy vals here because this could
   //be updated later on if factories() is called again with a different configuration.
   private[this] val configuration_load_lock = new ReentrantLock()
@@ -127,11 +132,14 @@ object Engine {
     FactoriesFromConfiguration(default, engines)
   }
 
-  def newEngine[S <: CompilerSpecificSettings](sourceCode: String, addlSourceCode: String*): Engine[S, URI] =
-    newEngine[S, URI](CompilerSourceGenerator.fromStrings(sourceCode +: addlSourceCode))
+  def newEngine[S <: CompilerSpecificSettings](sourceCode: String*): Engine[S, URI] =
+    newEngine[S, URI](CompilerSourceGenerator.fromStrings(sourceCode))
 
-  def newEngine[S <: CompilerSpecificSettings](settings: CompilerSettings[S], sourceCode: String, addlSourceCode: String*): Engine[S, URI] =
-    newEngine[S, URI](settings, CompilerSourceGenerator.fromStrings(sourceCode +: addlSourceCode))
+  def newEngine[S <: CompilerSpecificSettings](settings: CompilerSettings[S], sourceCode: String*): Engine[S, URI] =
+    newEngine[S, URI](settings, CompilerSourceGenerator.fromStrings(sourceCode))
+
+  def newEngine[S <: CompilerSpecificSettings](settings: CompilerSettings[S], sourceCode: Iterable[String]): Engine[S, URI] =
+    newEngine[S, URI](settings, CompilerSourceGenerator.fromStrings(sourceCode))
 
   def apply[S <: CompilerSpecificSettings, T](generator: Generator[CompilerSource[T], CompilerContext]): Engine[S, T] =
     newEngine[S, T](generator)
@@ -172,16 +180,77 @@ trait EngineDetails[+S <: CompilerSpecificSettings] {
 }
 
 trait Engine[+S <: CompilerSpecificSettings, +T] extends Closeable {
+  import java.util.concurrent.CopyOnWriteArrayList
+  import JavaConversions._
+
+  type TSource <: T
+
   def details: EngineDetails[S]
   def settings: CompilerSettings[S]
   def generator: Generator[CompilerSource[T], CompilerContext]
 
-  def push[CS >: CompilerSource[T]](source: CS) =
+  def push[CS <: CompilerSource[TSource]](source: CS) =
     generator.push(source)
-  def push[CS >: CompilerSource[T]](source: Iterable[CS]) =
+  def push[CS <: CompilerSource[TSource]](source: Iterable[CS]) =
     generator.push(source)
-  def push[CS >: CompilerSource[T]](context: CompilerContext, source: CS) =
+  def push[CS <: CompilerSource[TSource]](context: CompilerContext, source: CS) =
     generator.push(Some(context), source)
-  def push[CS >: CompilerSource[T]](context: CompilerContext, source: Iterable[CS]) =
+  def push[CS <: CompilerSource[TSource]](context: CompilerContext, source: Iterable[CS]) =
     generator.push(Some(context), source)
+
+  def pushSource(source: String, addlSource: String*) =
+    generator.push((source +: addlSource) map CompilerSource.fromString)
+  def pushSource(source: Iterable[String]) =
+    generator.push(source map CompilerSource.fromString)
+  def pushSource(context: CompilerContext, source: String, addlSource: String*) =
+    generator.push(Some(context), (source +: addlSource) map CompilerSource.fromString)
+  def pushSource(context: CompilerContext, source: Iterable[String]) =
+    generator.push(Some(context), source map CompilerSource.fromString)
+
+  private[this] val engine_listeners: CopyOnWriteArrayList[CompileListener] =
+    new CopyOnWriteArrayList[CompileListener]()
+
+  protected def onMessageReceived(context: CompilerContext, message: CompilerMessage): Unit = {
+    val update = StandardCompileUpdate(
+        completed = false
+      , message   = Some(message)
+    )
+    context.handlers.messageReceived(this, message)
+    for(listener <- engine_listeners)
+      listener.onUpdate(update)
+  }
+
+  protected def onProgressUpdate(context: CompilerContext, progress: CompilerProgress): Unit = {
+    val update = StandardCompileUpdate(
+        completed = false
+      , progress  = Some(progress)
+    )
+    context.handlers.progressUpdate(this, progress)
+    for(listener <- engine_listeners)
+      listener.onUpdate(update)
+  }
+
+  protected def onSourceCompiled(context: CompilerContext, result: CompileResult): Unit = {
+    val update = StandardCompileUpdate(
+        completed = true
+      , result    = Some(result)
+    )
+    context.handlers.sourceCompiled(this, result)
+    for(listener <- engine_listeners)
+      listener.onUpdate(update)
+  }
+
+  def toObservable: Observable[CompileUpdate] = {
+    Observable.create[CompileUpdate] { subscriber =>
+      val listener = StandardCompileListener(
+          fnUpdate = (x) => subscriber.onNext(x)
+        , fnClose  = ()  => subscriber.onCompleted()
+      )
+      engine_listeners.add(listener)
+      Subscription {
+        engine_listeners.remove(listener)
+        ()
+      }
+    }
+  }
 }

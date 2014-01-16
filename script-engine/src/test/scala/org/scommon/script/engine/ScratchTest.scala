@@ -30,6 +30,7 @@ import org.scommon.script.engine.core._
 import org.scommon.reactive._
 import org.scommon.security._
 import org.scommon.security.Sandbox
+import rx.lang.scala.Observer
 
 
 @RunWith(classOf[JUnitRunner])
@@ -82,7 +83,7 @@ class ScratchTest extends FunSuite
         //println(my.outputDirectory)
 
         my.handlers.progressUpdate = (_, progress) => {
-          println(s"Progress: $progress")
+          //println(s"Progress: $progress")
         }
 
         my.handlers.sourceCompiled = (_, result) => {
@@ -130,35 +131,17 @@ class ScratchTest extends FunSuite
 
         //my.options = Seq("-Xprint-types", "-Xshow-phases", "-Ydebug")
 
-        //TODO: Add error/warning listener.
-        val engine = Engine.newEngine[Scala](my,
-          s"""
-            |package whatever.blah
-            |trait Bar
-            |case class SomeCaseClass() extends org.scommon.script.engine.MyTestTrait
-            |object A {
-            |  object Baz extends org.scommon.script.engine.MyTestTrait {
-            |    class Foo extends Bar with org.scommon.script.engine.MyTestTrait
-            |    def main(args: Array[String]) {
-            |      println("Hello, world! " + args.toList)
-            |      //println(System.getProperty("path.separator"))
-            |      //new java.io.File("${PathUtil.queryApplicationDirectory.replaceAllLiterally("\\", "\\\\")}").listFiles.foreach(println)
-            |      //new java.io.File(".").listFiles.foreach(println)
-            |      import scala.sys.process._
-            |      Seq("echo", "Hi!").!
-            |    }
-            |  }
-            |}
-          """.stripMargin,
-          """
-            |package abc
-            |object Qux {
-            |    def main(args: Array[String]) {
-            |      println("Hello, world! Qux")
-            |    }
-            |}
-          """.stripMargin
-        )
+        val engine = Engine.newEngine[Scala](my)
+
+        engine.toObservable(Observer { x =>
+          println(s">>>>>>>>>> $x")
+        })
+
+        //TODO: Change "CompilerError" -> "CompileError" (and other related classes/enums)
+        //TODO: Remove "StandardCompileUpdate" and make the trait just a case class (so we get extractor for free and reduce unnecessary code)
+        //TODO: Go through all the other classes and make similar changes as the one above
+
+        engine.pushSource(EmbeddedResources(1 to 2)("/examples/t001/%03d.scala"))
 
         usingUnit(engine) {
 
@@ -168,13 +151,7 @@ class ScratchTest extends FunSuite
           }
 
           //Pushing with a different context invokes its handlers.
-          engine.push(separate_context, CompilerSource.fromString(
-            """
-              |package second
-              |trait Foo
-              |objectz Bar
-            """.stripMargin
-          ))
+          engine.pushSource(separate_context, EmbeddedResource("/examples/t002/001.scala"))
         }
       } finally {
         working.deleteAll should be (true)
