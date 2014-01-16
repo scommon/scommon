@@ -19,6 +19,7 @@ trait Version extends Ordered[Version] {
   def major:Int
   def minor:Option[Int]
   def revision:Option[Int]
+  def annotation:Option[String]
 
   def asString():String
   def asString(builder:StringBuilder):StringBuilder
@@ -32,13 +33,19 @@ trait Version extends Ordered[Version] {
 object CommonVersion {
   import StringUtil._
 
+  private val REGEX_VERSION_STRING_MAJOR_MINOR_REVISION_ANNOTATION          = """(\d+)\.(\d+)\.(\d+)([^.].*)""".r
   private val REGEX_VERSION_STRING_MAJOR_MINOR_REVISION                     = """(\d+)\.(\d+)\.(\d+)""".r
+  private val REGEX_VERSION_STRING_MAJOR_MINOR_ANNOTATION                   = """(\d+)\.(\d+)([^.].*)""".r
   private val REGEX_VERSION_STRING_MAJOR_MINOR                              = """(\d+)\.(\d+)""".r
+  private val REGEX_VERSION_STRING_MAJOR_ANNOTATION                         = """(\d+)([^.].*)""".r
   private val REGEX_VERSION_STRING_MAJOR                                    = """(\d+)""".r
 
   private val REGEX_VERSION_STRING_MATCH_LIST_IN_ORDER:Seq[Regex]           = Seq(
-      REGEX_VERSION_STRING_MAJOR_MINOR_REVISION
+      REGEX_VERSION_STRING_MAJOR_MINOR_REVISION_ANNOTATION
+    , REGEX_VERSION_STRING_MAJOR_MINOR_REVISION
+    , REGEX_VERSION_STRING_MAJOR_MINOR_ANNOTATION
     , REGEX_VERSION_STRING_MAJOR_MINOR
+    , REGEX_VERSION_STRING_MAJOR_ANNOTATION
     , REGEX_VERSION_STRING_MAJOR
   )
 
@@ -58,9 +65,18 @@ object CommonVersion {
         count = m.groupCount()
       } {
         count match {
-          case 3 => return Some(new CommonVersion(parseInt(m.group(1)), Some(parseInt(m.group(2))), Some(parseInt(m.group(3)))))
-          case 2 => return Some(new CommonVersion(parseInt(m.group(1)), Some(parseInt(m.group(2))), None))
-          case 1 => return Some(new CommonVersion(parseInt(m.group(1)), None, None))
+          case 4 =>
+            return Some(new CommonVersion(parseInt(m.group(1)), Some(parseInt(m.group(2))), Some(parseInt(m.group(3))), Some(m.group(4))))
+          case 3 if p == REGEX_VERSION_STRING_MAJOR_MINOR_REVISION =>
+            return Some(new CommonVersion(parseInt(m.group(1)), Some(parseInt(m.group(2))), Some(parseInt(m.group(3))), None))
+          case 3 if p == REGEX_VERSION_STRING_MAJOR_MINOR_ANNOTATION =>
+            return Some(new CommonVersion(parseInt(m.group(1)), Some(parseInt(m.group(2))), None, Some(m.group(3))))
+          case 2 if p == REGEX_VERSION_STRING_MAJOR_MINOR =>
+            return Some(new CommonVersion(parseInt(m.group(1)), Some(parseInt(m.group(2))), None, None))
+          case 2 if p == REGEX_VERSION_STRING_MAJOR_ANNOTATION =>
+            return Some(new CommonVersion(parseInt(m.group(1)), None, None, Some(m.group(2))))
+          case 1 =>
+            return Some(new CommonVersion(parseInt(m.group(1)), None, None, None))
         }
       }
 
@@ -90,7 +106,7 @@ object CommonVersion {
  *
  * @author David Hoyt <dhoyt@hoytsoft.org>
  */
-class CommonVersion(val major:Int, val minor:Option[Int], val revision:Option[Int]) extends Version {
+class CommonVersion(val major:Int, val minor:Option[Int], val revision:Option[Int], val annotation:Option[String] = None) extends Version {
   import CommonVersion._
 
   require((minor.isDefined && revision.isDefined) || (minor.isDefined && revision.isEmpty) || (minor.isEmpty && revision.isEmpty), "Minor must also be specified")
@@ -104,12 +120,13 @@ class CommonVersion(val major:Int, val minor:Option[Int], val revision:Option[In
   def asString():String = //major.minor.revision
     s"$major" +
     (if (minor.isDefined) s".${minor.get}" else StringUtil.empty) +
-    (if (revision.isDefined) s".${revision.get}" else StringUtil.empty)
+    (if (revision.isDefined) s".${revision.get}" else StringUtil.empty) +
+    (if (annotation.isDefined) s"${annotation.get}" else StringUtil.empty)
 
   override def toString:String = asString()
 
   override def equals(o:Any):Boolean = o match {
-    case v:Version => major == v.major && minor == v.minor && revision == v.revision
+    case v:Version => major == v.major && minor == v.minor && revision == v.revision && annotation == v.annotation
     case _ => false
   }
 
@@ -117,6 +134,7 @@ class CommonVersion(val major:Int, val minor:Option[Int], val revision:Option[In
     var result = major
     result = 31 * result + minor.hashCode()
     result = 31 * result + revision.hashCode()
+    result = 31 * result + annotation.hashCode()
     result
   }
 
@@ -129,11 +147,17 @@ class CommonVersion(val major:Int, val minor:Option[Int], val revision:Option[In
  * @author David Hoyt <dhoyt@hoytsoft.org>
  */
 object Version extends Ordering[Version] {
-  def apply(major:Int) = new CommonVersion(major, None, None)
-  def apply(major:Int, minor:Int) = new CommonVersion(major, Some(minor), None)
-  def apply(major:Int, minor:Int, maintenance:Int) = new CommonVersion(major, Some(minor), Some(maintenance))
+  def apply(major:Int) = new CommonVersion(major, None, None, None)
+  def apply(major:Int, minor:Int) = new CommonVersion(major, Some(minor), None, None)
+  def apply(major:Int, minor:Int, maintenance:Int) = new CommonVersion(major, Some(minor), Some(maintenance), None)
+  def apply(major:Int, annotation:String) = new CommonVersion(major, None, None, Some(annotation))
+  def apply(major:Int, minor:Int, annotation:String) = new CommonVersion(major, Some(minor), None, Some(annotation))
+  def apply(major:Int, minor:Int, maintenance:Int, annotation:String) = new CommonVersion(major, Some(minor), Some(maintenance), Some(annotation))
   def apply(v: String):Version = CommonVersion.parse(v)
   def tryParse(v:String):Option[Version] = CommonVersion.tryParse(v)
+
+  def unapply(v: Version):Option[(Int, Option[Int], Option[Int], Option[String])] =
+    Some(v.major, v.minor, v.revision, v.annotation)
 
   def compare(x: Version, y: Version) = {
     if (x.major < y.major) -1

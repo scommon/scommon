@@ -20,6 +20,7 @@ class VersionTest extends FunSuite
   }
 
   test("Parsing partial version number as a string works") {
+    Version("1.2.3-RC2.1") should be (Version(1, 2, 3, "-RC2.1"))
     Version("1.2.3") should be (Version(1, 2, 3))
     Version("1.2") should be (Version(1, 2))
     Version("1") should be (Version(1))
@@ -37,13 +38,44 @@ class VersionTest extends FunSuite
     }
   }
 
+  test("Basic extractor works") {
+    Version(1, 2, 3, "-RC1") match {
+      case Version(major, Some(minor), Some(revision), Some(annotation)) =>
+        major should be (1)
+        minor should be (2)
+        revision should be (3)
+        annotation should be ("-RC1")
+      case _ =>
+        fail("Extractor not working correctly")
+    }
+
+    Version(1, 2) match {
+      case Version(major, Some(minor), revision @ None, annotation @ None) =>
+        major should be (1)
+        minor should be (2)
+        revision should be (None)
+        annotation should be (None)
+      case _ =>
+        fail("Extractor not working correctly")
+    }
+
+    Version(1) match {
+      case Version(major, minor @ None, revision @ None, annotation @ None) =>
+        major should be (1)
+        minor should be (None)
+        revision should be (None)
+        annotation should be (None)
+      case _ =>
+        fail("Extractor not working correctly")
+    }
+  }
+
   test("Invalid numbers should not parse") {
-    Version.tryParse("1.2.3A")                        should be (None) //Appended a non-digit to the end
-    Version.tryParse("1.2_3")                         should be (None) //Period replaced with underscore
+    Version.tryParse("1.2.3.RC1")                     should be (None) //Period beginning an annotation
+    Version.tryParse("1.2.3.")                        should be (None) //Period beginning an annotation and the rest blank
     Version.tryParse("1.2.")                          should be (None) //Left a trailing period
     Version.tryParse("1.A")                           should be (None) //Minor version replaced with non-digit
     Version.tryParse("1.")                            should be (None) //Left a trailing period
-    Version.tryParse("1_")                            should be (None) //Left a trailing underscore
     Version.tryParse("?")                             should be (None) //Simple version, non-digit for major version
     Version.tryParse(" ")                             should be (None) //Just whitespace
     Version.tryParse("")                              should be (None) //Empty string
