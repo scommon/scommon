@@ -133,18 +133,18 @@ object Engine {
   }
 
   def newEngine[S <: CompilerSpecificSettings](sourceCode: String*): Engine[S, URI] =
-    newEngine[S, URI](CompilerSourceGenerator.fromStrings(sourceCode))
+    newEngine[S, URI](SourceCodeGenerator.fromStrings(sourceCode))
 
   def newEngine[S <: CompilerSpecificSettings](settings: CompilerSettings[S], sourceCode: String*): Engine[S, URI] =
-    newEngine[S, URI](settings, CompilerSourceGenerator.fromStrings(sourceCode))
+    newEngine[S, URI](settings, SourceCodeGenerator.fromStrings(sourceCode))
 
   def newEngine[S <: CompilerSpecificSettings](settings: CompilerSettings[S], sourceCode: Iterable[String]): Engine[S, URI] =
-    newEngine[S, URI](settings, CompilerSourceGenerator.fromStrings(sourceCode))
+    newEngine[S, URI](settings, SourceCodeGenerator.fromStrings(sourceCode))
 
-  def apply[S <: CompilerSpecificSettings, T](generator: Generator[CompilerSource[T], CompilerContext]): Engine[S, T] =
+  def apply[S <: CompilerSpecificSettings, T](generator: Generator[SourceCode[T], CompileContext]): Engine[S, T] =
     newEngine[S, T](generator)
 
-  def newEngine[S <: CompilerSpecificSettings, T](generator: Generator[CompilerSource[T], CompilerContext]): Engine[S, T] = {
+  def newEngine[S <: CompilerSpecificSettings, T](generator: Generator[SourceCode[T], CompileContext]): Engine[S, T] = {
     //Do it this way b/c it's possible the default changes from underneath
     //you between calls (very unlikely but still possible).
     val d = default[S]
@@ -152,13 +152,13 @@ object Engine {
     d.newEngine[S, T](settings, generator withDefaultContext settings)
   }
 
-  def apply[S <: CompilerSpecificSettings, T](settings: CompilerSettings[S], generator: Generator[CompilerSource[T], CompilerContext]): Engine[S, T] =
+  def apply[S <: CompilerSpecificSettings, T](settings: CompilerSettings[S], generator: Generator[SourceCode[T], CompileContext]): Engine[S, T] =
     newEngine[S, T](settings, generator)
 
-  def newEngine[S <: CompilerSpecificSettings, T](settings: CompilerSettings[S], generator: Generator[CompilerSource[T], CompilerContext]): Engine[S, T] =
+  def newEngine[S <: CompilerSpecificSettings, T](settings: CompilerSettings[S], generator: Generator[SourceCode[T], CompileContext]): Engine[S, T] =
     default[S].newEngine(settings, generator withDefaultContext settings)
 
-  def newScalaEngine[T, C >: CompilerContext <: CompilerContext](settings: CompilerSettings[Scala], generator: Generator[CompilerSource[T], CompilerContext]): Engine[Scala, T] =
+  def newScalaEngine[T, C >: CompileContext <: CompileContext](settings: CompilerSettings[Scala], generator: Generator[SourceCode[T], CompileContext]): Engine[Scala, T] =
     ScalaEngine.newEngine[Scala, T](settings, generator withDefaultContext settings)
 }
 
@@ -167,7 +167,7 @@ trait CompilerSpecificSettings extends StandardFieldMirror
 trait EngineFactory[+S <: CompilerSpecificSettings] {
   def instance: EngineFactory[S]
   def details: EngineDetails[S]
-  def newEngine[U >: S <: CompilerSpecificSettings, T](settings: CompilerSettings[U], generator: Generator[CompilerSource[T], CompilerContext]): Engine[S, T]
+  def newEngine[U >: S <: CompilerSpecificSettings, T](settings: CompilerSettings[U], generator: Generator[SourceCode[T], CompileContext]): Engine[S, T]
   override def toString = s"$details"
 }
 
@@ -187,31 +187,31 @@ trait Engine[+S <: CompilerSpecificSettings, +T] extends Closeable {
 
   def details: EngineDetails[S]
   def settings: CompilerSettings[S]
-  def generator: Generator[CompilerSource[T], CompilerContext]
+  def generator: Generator[SourceCode[T], CompileContext]
 
-  def push[CS <: CompilerSource[TSource]](source: CS) =
+  def push[SC <: SourceCode[TSource]](source: SC) =
     generator.push(source)
-  def push[CS <: CompilerSource[TSource]](source: Iterable[CS]) =
+  def push[SC <: SourceCode[TSource]](source: Iterable[SC]) =
     generator.push(source)
-  def push[CS <: CompilerSource[TSource]](context: CompilerContext, source: CS) =
+  def push[SC <: SourceCode[TSource]](context: CompileContext, source: SC) =
     generator.push(Some(context), source)
-  def push[CS <: CompilerSource[TSource]](context: CompilerContext, source: Iterable[CS]) =
+  def push[SC <: SourceCode[TSource]](context: CompileContext, source: Iterable[SC]) =
     generator.push(Some(context), source)
 
   def pushSource(source: String, addlSource: String*) =
-    generator.push((source +: addlSource) map CompilerSource.fromString)
+    generator.push((source +: addlSource) map SourceCode.fromString)
   def pushSource(source: Iterable[String]) =
-    generator.push(source map CompilerSource.fromString)
-  def pushSource(context: CompilerContext, source: String, addlSource: String*) =
-    generator.push(Some(context), (source +: addlSource) map CompilerSource.fromString)
-  def pushSource(context: CompilerContext, source: Iterable[String]) =
-    generator.push(Some(context), source map CompilerSource.fromString)
+    generator.push(source map SourceCode.fromString)
+  def pushSource(context: CompileContext, source: String, addlSource: String*) =
+    generator.push(Some(context), (source +: addlSource) map SourceCode.fromString)
+  def pushSource(context: CompileContext, source: Iterable[String]) =
+    generator.push(Some(context), source map SourceCode.fromString)
 
   private[this] val engine_listeners: CopyOnWriteArrayList[CompileListener] =
     new CopyOnWriteArrayList[CompileListener]()
 
-  protected def onMessageReceived(context: CompilerContext, message: CompilerMessage): Unit = {
-    val update = StandardCompileUpdate(
+  protected def onMessageReceived(context: CompileContext, message: CompileMessage): Unit = {
+    val update = CompileUpdate(
         completed = false
       , message   = Some(message)
     )
@@ -220,8 +220,8 @@ trait Engine[+S <: CompilerSpecificSettings, +T] extends Closeable {
       listener.onUpdate(update)
   }
 
-  protected def onProgressUpdate(context: CompilerContext, progress: CompilerProgress): Unit = {
-    val update = StandardCompileUpdate(
+  protected def onProgressUpdate(context: CompileContext, progress: CompileProgress): Unit = {
+    val update = CompileUpdate(
         completed = false
       , progress  = Some(progress)
     )
@@ -230,8 +230,8 @@ trait Engine[+S <: CompilerSpecificSettings, +T] extends Closeable {
       listener.onUpdate(update)
   }
 
-  protected def onSourceCompiled(context: CompilerContext, result: CompileResult): Unit = {
-    val update = StandardCompileUpdate(
+  protected def onSourceCompiled(context: CompileContext, result: CompileResult): Unit = {
+    val update = CompileUpdate(
         completed = true
       , result    = Some(result)
     )
@@ -242,7 +242,7 @@ trait Engine[+S <: CompilerSpecificSettings, +T] extends Closeable {
 
   def toObservable: Observable[CompileUpdate] = {
     Observable.create[CompileUpdate] { subscriber =>
-      val listener = StandardCompileListener(
+      val listener = CompileListener(
           fnUpdate = (x) => subscriber.onNext(x)
         , fnClose  = ()  => subscriber.onCompleted()
       )

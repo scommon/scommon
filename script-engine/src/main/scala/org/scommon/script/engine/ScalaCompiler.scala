@@ -20,8 +20,8 @@ object ScalaCompiler {
   val version = Version(_root_.scala.util.Properties.versionNumberString)
 
   def apply(settings: nsc.Settings, intercepts: Iterable[ScalaPhaseIntercept])
-           (fnMessageReceived: CompilerMessage => Unit)
-           (fnProgressUpdate: CompilerProgress => Unit) =
+           (fnMessageReceived: CompileMessage => Unit)
+           (fnProgressUpdate: CompileProgress => Unit) =
     new ScalaCompiler(settings, intercepts, fnMessageReceived, fnProgressUpdate)
 
   implicit def toSubComponent(intercept: ScalaPhaseIntercept, providedGlobal: nsc.Global): nsc.SubComponent = new nsc.SubComponent { self =>
@@ -50,7 +50,7 @@ object ScalaCompiler {
     }
   }
 
-  implicit def toAbstractFile(source: CompilerSource[Any], charset: Charset = org.scommon.io.DEFAULT_CHARSET): nsc.io.AbstractFile =
+  implicit def toAbstractFile(source: SourceCode[Any], charset: Charset = org.scommon.io.DEFAULT_CHARSET): nsc.io.AbstractFile =
     new nsc.io.AbstractFile {
       /** Returns contents of file (if applicable) in a Char array.
         *  warning: use <code>Global.getSourceFile()</code> to use the proper
@@ -90,8 +90,8 @@ object ScalaCompiler {
 sealed class ScalaCompiler(
   val settings: nsc.Settings,
   val intercepts: Iterable[ScalaPhaseIntercept],
-  fnMessageReceived: CompilerMessage => Unit,
-  fnProgressUpdate: CompilerProgress => Unit
+  fnMessageReceived: CompileMessage => Unit,
+  fnProgressUpdate: CompileProgress => Unit
 ) extends core.Compiler
 {
   import ScalaCompiler._
@@ -108,15 +108,15 @@ sealed class ScalaCompiler(
     def display(pos: SPosition, msg: String, severity: Severity) {
       val m: String = SPosition.formatMessage(pos, msg, true)
 
-      val s: CompilerMessageSeverity.EnumVal =
+      val s: CompileMessageSeverity.EnumVal =
         if (severity == ERROR)
-          CompilerMessageSeverity.Error
+          CompileMessageSeverity.Error
         else if (severity == WARNING)
-          CompilerMessageSeverity.Warning
+          CompileMessageSeverity.Warning
         else if (severity == INFO)
-          CompilerMessageSeverity.Information
+          CompileMessageSeverity.Information
         else
-          CompilerMessageSeverity.Unknown
+          CompileMessageSeverity.Unknown
 
       val p: Position =
         if (pos eq null)
@@ -128,12 +128,12 @@ sealed class ScalaCompiler(
             else
               pos
           if (pos_in.isDefined)
-            StandardPosition(pos_in.line, pos_in.column)
+            Position(pos_in.line, pos_in.column)
           else
             UnknownPosition
         }
 
-      fnMessageReceived(StandardCompilerMessage(s, m, p))
+      fnMessageReceived(CompileMessage(s, m, p))
     }
   }
 
@@ -162,7 +162,7 @@ sealed class ScalaCompiler(
       super.progress(current, total)
       if (current != lastPhase) {
         lastPhase = current
-        fnProgressUpdate(StandardCompilerProgress(
+        fnProgressUpdate(CompileProgress(
           phase           = currentPhase,
           phaseIndex      = current,
           totalPhaseCount = total,
@@ -172,7 +172,7 @@ sealed class ScalaCompiler(
     }
   }
 
-  def compile(sources: Iterable[CompilerSource[Any]]) = {
+  def compile(sources: Iterable[SourceCode[Any]]) = {
     val form_that_compiler_understands =
       for {
         source <- sources

@@ -145,7 +145,7 @@ class ScratchTest extends FunSuite
 
         usingUnit(engine) {
 
-          val separate_context = StandardCompilerContext()
+          val separate_context = CompileContext()
           separate_context.handlers.messageReceived = (e, m) => {
             println(s"OTHER CONTEXT: ${m.message}")
           }

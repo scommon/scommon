@@ -5,72 +5,60 @@ import scala.collection._
 
 import org.scommon.security.SecurityContext
 
-
-object ClassContents {
-  def apply(payload: Array[Byte]) =
-    StandardClassContents(() => payload.length, () => payload)
-
-  def apply(size: => Long)(payload: => Array[Byte]) =
-    StandardClassContents(() => size, () => payload)
-}
-
 trait ClassContents extends Serializable {
   def size: Long
   def payload: Array[Byte]
 }
 
-@SerialVersionUID(234242438L)
-private[core] sealed case class StandardClassContents(
-    eventual_size: () => Long
-  , eventual_payload: () => Array[Byte]
-) extends ClassContents {
-  lazy val size: Long = eventual_size()
-  lazy val payload: Array[Byte] = eventual_payload()
+object ClassContents {
+  @SerialVersionUID(234242438L)
+  private[core] sealed case class InnerClassContents(
+      eventual_size: () => Long
+    , eventual_payload: () => Array[Byte]
+  ) extends ClassContents {
+    lazy val size: Long = eventual_size()
+    lazy val payload: Array[Byte] = eventual_payload()
+    override def toString = s"ClassContents(size = <lazily eval>, payload = <lazily eval>)"
+  }
+
+  def apply(payload: Array[Byte]): ClassContents =
+    InnerClassContents(() => payload.length, () => payload)
+
+  def apply(size: => Long)(payload: => Array[Byte]): ClassContents =
+    InnerClassContents(() => size, () => payload)
+
+  def unapply(c: ClassContents) = c match {
+    case i: InnerClassContents => InnerClassContents.unapply(i)
+    case _ => None
+  }
 }
 
-object ClassDescription {
-  def apply(scalaClassName: String, javaClassName: String, javaClassFileName: String, purportedJavaClassName: String): ClassDescription =
-    StandardClassDescription(scalaClassName, javaClassName, javaClassFileName, purportedJavaClassName)
-}
-
-trait ClassDescription extends Serializable {
-  def scalaClassName: String
-  def javaClassName: String
-  def javaClassFileName: String
-  def purportedJavaClassName: String
-}
-
-private[core] sealed case class StandardClassDescription(
-    scalaClassName:         String
-  , javaClassName:          String
-  , javaClassFileName:      String
+sealed case class ClassDescription(
+    scalaClassName        : String
+  , javaClassName         : String
+  , javaClassFileName     : String
   , purportedJavaClassName: String
-) extends ClassDescription
+) extends Serializable
 
-object ClassEntry {
-  def apply(description: ClassDescription, contents: ClassContents) =
-    StandardClassEntry(description, contents)
-}
-
-trait ClassEntry {
-  def description: ClassDescription
-  def contents: ClassContents
-}
-
-private[core] sealed case class StandardClassEntry(
+sealed case class ClassEntry (
     description: ClassDescription
-  , contents: ClassContents
-) extends ClassEntry
+  , contents   : ClassContents
+)
 
 object ClassRegistry {
   private val MINIMAL_PROTECTION_DOMAIN =
     new java.security.ProtectionDomain(null, new java.security.Permissions())
 
+  @SerialVersionUID(34535556L)
+  private[this] sealed case class InnerClassRegistry(
+      protected val entries: Map[String, ClassEntry]
+  ) extends ClassRegistry
+
   def apply(entries: Iterable[ClassEntry]): ClassRegistry = {
     val m = mutable.HashMap[String, ClassEntry]()
     for (e <- entries)
       m += e.description.javaClassName -> e
-    StandardClassRegistry(m)
+    InnerClassRegistry(m)
   }
 }
 
@@ -105,8 +93,3 @@ with Serializable  {
     }
   }
 }
-
-@SerialVersionUID(34535556L)
-private[core] sealed case class StandardClassRegistry(
-    protected val entries: Map[String, ClassEntry]
-) extends ClassRegistry

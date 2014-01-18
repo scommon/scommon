@@ -70,11 +70,11 @@ trait Scala extends CompilerSpecificSettings {
 }
 
 object ScalaCompilerSettings {
-  def apply(): StandardCompilerSettings[ScalaSpecificSettings] =
-    StandardCompilerSettings(specific = ScalaSpecificSettings())
+  def apply(): MutableCompilerSettings[ScalaSpecificSettings] =
+    MutableCompilerSettings(specific = ScalaSpecificSettings())
 
-  def apply(fnCustomize: (nsc.Settings => nsc.Settings)): StandardCompilerSettings[ScalaSpecificSettings] =
-    StandardCompilerSettings(specific = ScalaSpecificSettings(fnCustomize = fnCustomize))
+  def apply(fnCustomize: (nsc.Settings => nsc.Settings)): MutableCompilerSettings[ScalaSpecificSettings] =
+    MutableCompilerSettings(specific = ScalaSpecificSettings(fnCustomize = fnCustomize))
 
   private[engine] def toNscSettings(c: CompilerSettings[Scala]): nsc.Settings = {
     val s = new nsc.Settings(/*error fn*/)
@@ -107,7 +107,7 @@ object ScalaCompilerSettings {
 
     val (success, unprocessed) = s.processArguments(c.options.toList, false)
     if (!success)
-      throw CompilerError(s"Invalid arguments provided for the script engine Scala compiler. Arguments not processed: ${unprocessed.mkString(", ")}")
+      throw CompileError(s"Invalid arguments provided for the Scala engine. Arguments not processed: ${unprocessed.mkString(", ")}")
 
     c.specific.fnCustomize(s)
   }
@@ -132,6 +132,6 @@ case class ScalaSpecificSettings(
   , var verbose          : Boolean                 = false
   , var elidebelow       : Int                     = 900
 
-  , var phaseInterceptors: Iterable[ScalaPhaseIntercept] = Seq()
+  , var phaseInterceptors: Iterable[ScalaPhaseIntercept]  = Seq()
   ,     fnCustomize      : (nsc.Settings => nsc.Settings) = (x => x)
 ) extends Scala

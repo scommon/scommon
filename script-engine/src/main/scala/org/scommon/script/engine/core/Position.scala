@@ -14,7 +14,15 @@ sealed trait Position {
   }
 }
 
-sealed case class StandardPosition(line: Int, column: Int) extends Position
+object Position {
+  private[this] sealed case class StandardPosition(
+      line: Int
+    , column: Int
+  ) extends Position
+
+  def apply(line: Int, column: Int): Position =
+    StandardPosition(line, column)
+}
 
 case object UnknownPosition extends Position {
   val line = 0

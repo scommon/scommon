@@ -8,5 +8,9 @@ trait CompilerPhaseIntercept {
 }
 
 object CompilerPhaseIntercept {
-
+  def unapply(i: CompilerPhaseIntercept): Option[(String, Iterable[CompilerPhase.EnumVal], Option[CompilerPhase.EnumVal], Iterable[CompilerPhase.EnumVal])] =
+    if (i ne null)
+      Some(i.name, i.runsAfterPhases, i.runsRightAfterPhase, i.runsBeforePhases)
+    else
+      None
 }

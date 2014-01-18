@@ -9,32 +9,31 @@ import org.scommon.reactive.Generator
 
 import scala.language.implicitConversions
 
-object CompilerSourceGenerator {
-  type CompilerSourcesAvailable = (Iterable[CompilerSource[Any]]) => Unit
-  type CompilerSourceGeneration = CompilerSourceGenerator[URI, CompilerSource[URI], CompilerContext]
+object SourceCodeGenerator {
+  type URISourceCodeGenerator = SourceCodeGenerator[URI, SourceCode[URI], CompileContext]
 
-  @inline def fromStrings(strings: String*): CompilerSourceGeneration =
+  @inline def fromStrings(strings: String*): URISourceCodeGenerator =
     fromStrings(strings)
 
-  @inline def fromStrings(strings: Iterable[String]): CompilerSourceGeneration =
+  @inline def fromStrings(strings: Iterable[String]): URISourceCodeGenerator =
     fromStreams(strings.map(s  => new ByteArrayInputStream(s.getBytes("UTF-8"))))
 
-  @inline def fromStreams(streams: InputStream*): CompilerSourceGeneration =
+  @inline def fromStreams(streams: InputStream*): URISourceCodeGenerator =
     fromStreams(streams.toIterable)
 
-  def fromStreams(streams: Iterable[InputStream]): CompilerSourceGeneration = {
+  def fromStreams(streams: Iterable[InputStream]): URISourceCodeGenerator = {
     val initial = for {
       stream <- streams
-      source = CompilerSource.fromStream(stream)
+      source = SourceCode.fromStream(stream)
     } yield source
 
-    new CompilerSourceGeneration(initial)
+    new URISourceCodeGenerator(initial)
   }
 
-  def fromDirectory(directory: File): CompilerSourceGeneration = {
+  def fromDirectory(directory: File): URISourceCodeGenerator = {
     require(!directory.exists() || directory.isDirectory, "Compiler source generator must be a directory")
 
-    new CompilerSourceGeneration(Seq()) {
+    new URISourceCodeGenerator(Seq()) {
 
     }
   }
@@ -64,7 +63,7 @@ object CompilerSourceGenerator {
 //  }
 }
 
-sealed class CompilerSourceGenerator[TSource >: URI, TCompilerSource >: CompilerSource[TSource], TContext >: CompilerContext](
+sealed class SourceCodeGenerator[TSource >: URI, TCompilerSource >: SourceCode[TSource], TContext >: CompileContext](
   override val initial: Iterable[TCompilerSource]
 ) extends Generator[TCompilerSource, TContext] {
 

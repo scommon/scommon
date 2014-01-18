@@ -24,7 +24,7 @@ private[engine] object ScalaEngine extends EngineFactory[Scala] {
     val defaultSettings = ScalaCompilerSettings()
   }
 
-  def newEngine[U >: Scala <: CompilerSpecificSettings, T](settings: CompilerSettings[U], generator: Generator[CompilerSource[T], CompilerContext]): Engine[Scala, T] =
+  def newEngine[U >: Scala <: CompilerSpecificSettings, T](settings: CompilerSettings[U], generator: Generator[SourceCode[T], CompileContext]): Engine[Scala, T] =
     new ScalaEngine[T](details, settings.asInstanceOf[CompilerSettings[Scala]], generator)
 }
 
@@ -32,7 +32,7 @@ private[engine] object ScalaEngine extends EngineFactory[Scala] {
 private[engine] class ScalaEngine[T](
   val details: EngineDetails[Scala],
   val settings: CompilerSettings[Scala],
-  val generator: Generator[CompilerSource[T], CompilerContext])
+  val generator: Generator[SourceCode[T], CompileContext])
 extends Engine[Scala, T] {
   import Generator._
 
@@ -41,7 +41,7 @@ extends Engine[Scala, T] {
 
   private[this] val pipeline = ((
     generator
-    |>> waitForAllWithContext[CompilerContext])
+    |>> waitForAllWithContext[CompileContext])
     >> lift_source
     >> process_source
   ).begin
@@ -52,11 +52,11 @@ extends Engine[Scala, T] {
   //Extracts the CompilerSource instances from the junction data (which is what's processing the generator's
   //generated values). We gather all data from all generators and when they all arrive, the gate opens and
   //data begins flowing to junctions.
-  private[this] def lift_source: PartialFunction[(Option[CompilerContext], Any), (CompilerContext, Seq[Any])] = {
-    case ((Some(c: CompilerContext), Seq(Some(t @ Seq(_*)), _*))) => (c, t)
+  private[this] def lift_source: PartialFunction[(Option[CompileContext], Any), (CompileContext, Seq[Any])] = {
+    case ((Some(c: CompileContext), Seq(Some(t @ Seq(_*)), _*))) => (c, t)
   }
 
-  private[this] def process_source: PartialFunction[Any, Unit] = { case ((context: CompilerContext, (sources: Seq[CompilerSource[T]] @unchecked))) =>
+  private[this] def process_source: PartialFunction[Any, Unit] = { case ((context: CompileContext, (sources: Seq[SourceCode[T]] @unchecked))) =>
     //sources.foreach(x => println(s"Compiling ${x.source}"))
 
     val output_dir: nsc.io.AbstractFile = {

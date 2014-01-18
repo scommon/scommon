@@ -7,19 +7,19 @@ import scala.collection.mutable
 
 import org.scommon.io._
 
-trait CompilerSource[+TSource] {
+trait SourceCode[+TFrom] {
   def contents: Array[Byte]
-  def source: TSource
+  def from: TFrom
   def path: String
   def name: String
 }
 
-object CompilerSource {
+object SourceCode {
   def fromString(value: String) =
     fromStream(new ByteArrayInputStream(value.getBytes("UTF-8")))
 
-  def fromStream(input: InputStream, inputSource: URI = URI.create(s"mem:///stream/${UUID.randomUUID().toString}")): CompilerSource[URI] = {
-    new CompilerSource[URI] {
+  def fromStream(input: InputStream, inputSource: URI = URI.create(s"mem:///stream/${UUID.randomUUID().toString}")): SourceCode[URI] = {
+    new SourceCode[URI] {
       lazy val contents = {
         val a = mutable.ArrayBuffer[Byte]()
 
@@ -31,7 +31,7 @@ object CompilerSource {
         a.toArray
       }
 
-      val source = inputSource
+      val from = inputSource
       val path = Option(inputSource.getPath) getOrElse ""
       val name = {
         val p = path
@@ -39,7 +39,7 @@ object CompilerSource {
         if (idx >= 0) p.substring(idx + 1) else ""
       }
 
-      override def toString = source.toString
+      override def toString = from.toString
     }
   }
 }
