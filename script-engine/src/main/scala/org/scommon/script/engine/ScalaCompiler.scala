@@ -106,7 +106,7 @@ sealed class ScalaCompiler(
     def displayPrompt(): Unit = {}
 
     def display(pos: SPosition, msg: String, severity: Severity) {
-      val m: String = SPosition.formatMessage(pos, msg, true)
+      val m: String = SPosition.formatMessage(pos, msg, shortenFile = true)
 
       val s: CompileMessageSeverity.EnumVal =
         if (severity == ERROR)
@@ -124,7 +124,7 @@ sealed class ScalaCompiler(
         else {
           val pos_in =
             if (pos.isDefined)
-              pos.inUltimateSource(pos.source)
+              pos.finalPosition
             else
               pos
           if (pos_in.isDefined)

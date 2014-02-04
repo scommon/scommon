@@ -1,7 +1,7 @@
 package org.scommon.script.engine.core
 
-import scala.collection.generic.{FilterMonadic, CanBuildFrom}
 import scala.collection._
+import scala.collection.generic.{FilterMonadic, CanBuildFrom}
 
 import org.scommon.security.SecurityContext
 
@@ -38,6 +38,8 @@ sealed case class ClassDescription(
   , javaClassName         : String
   , javaClassFileName     : String
   , purportedJavaClassName: String
+  , isTermName            : Boolean = false
+  , isTypeName            : Boolean = true
 ) extends Serializable
 
 sealed case class ClassEntry (
@@ -52,7 +54,9 @@ object ClassRegistry {
   @SerialVersionUID(34535556L)
   private[this] sealed case class InnerClassRegistry(
       protected val entries: Map[String, ClassEntry]
-  ) extends ClassRegistry
+  ) extends ClassRegistry {
+    override def toString = s"ClassRegistry($entries)"
+  }
 
   def apply(entries: Iterable[ClassEntry]): ClassRegistry = {
     val m = mutable.HashMap[String, ClassEntry]()

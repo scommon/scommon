@@ -1,16 +1,15 @@
 package org.scommon.io
 
 import org.scalatest.junit.JUnitRunner
-import org.scalatest.{BeforeAndAfterAll, SeveredStackTraces, FunSuite}
+import org.scalatest.{Matchers, BeforeAndAfterAll, SeveredStackTraces, FunSuite}
 import org.junit.runner.RunWith
-import org.scalatest.matchers.ShouldMatchers
 import java.util.UUID
 
 import Utils._
 
 @RunWith(classOf[JUnitRunner])
 class PathUtilTest extends FunSuite
-                     with ShouldMatchers
+                     with Matchers
                      with SeveredStackTraces
                      with BeforeAndAfterAll {
 

@@ -21,6 +21,6 @@ libraryDependencies += "com.google.code.findbugs" % "jsr305" % "1.3.+"
 
 libraryDependencies += "com.typesafe" % "config" % "1.0.2"
 
-libraryDependencies += "org.scalatest" %% "scalatest" % "2.0.M5b" % "test"
+libraryDependencies += "org.scalatest" %% "scalatest" % "2.1.RC1" % "test"
 
 libraryDependencies += "junit" % "junit" % "4.11" % "test"

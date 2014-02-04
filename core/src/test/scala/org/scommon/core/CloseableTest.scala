@@ -1,9 +1,8 @@
 package org.scommon.core
 
 import org.scalatest.junit.JUnitRunner
-import org.scalatest.{BeforeAndAfterAll, SeveredStackTraces, FunSuite}
+import org.scalatest.{Matchers, BeforeAndAfterAll, SeveredStackTraces, FunSuite}
 import org.junit.runner.RunWith
-import org.scalatest.matchers.ShouldMatchers
 import java.io._
 import java.util.UUID
 
@@ -14,7 +13,7 @@ import org.apache.commons.io.FileUtils
 
 @RunWith(classOf[JUnitRunner])
 class CloseableTest extends FunSuite
-                     with ShouldMatchers
+                     with Matchers
                      with SeveredStackTraces
                      with BeforeAndAfterAll {
 

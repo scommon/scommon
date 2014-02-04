@@ -1,15 +1,14 @@
 package org.scommon.reactive
 
 import org.scalatest.junit.JUnitRunner
-import org.scalatest.{BeforeAndAfterAll, SeveredStackTraces, FunSuite}
+import org.scalatest.{Matchers, SeveredStackTraces, FunSuite}
 import org.junit.runner.RunWith
-import org.scalatest.matchers.ShouldMatchers
 
 import scala.collection._
 
 @RunWith(classOf[JUnitRunner])
 class GeneratorTest extends FunSuite
-                     with ShouldMatchers
+                     with Matchers
                      with SeveredStackTraces {
 
   /* For coolness' sake.

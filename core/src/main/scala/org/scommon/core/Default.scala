@@ -9,7 +9,7 @@ trait Default[A] {
 }
 
 trait LowPriorityImplicitsForDefault { this: Default.type =>
-  implicit def forAnyRef[A](implicit ev: Null <:< A) = Default withValue (null : A)
+  implicit def forAnyRef[A](implicit ev: Null <:< A) = Default withValue ev(null)
 }
 
 object Default extends LowPriorityImplicitsForDefault {

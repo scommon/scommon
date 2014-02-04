@@ -117,8 +117,8 @@ object ScalaCompilerUtils {
      */
     @tailrec
     def fullNameInternal(s: global.Symbol, separator: Char, accum: global.Name): global.Name = {
-      if (s.isRoot || s.isRootPackage || s == global.NoSymbol) accum prepend s.name
-      else if (s.owner.isEffectiveRoot) accum prepend s.name
+      if (s.isRoot || s.isRootPackage || s == global.NoSymbol) accum prepend s.name.toString
+      else if (s.owner.isEffectiveRoot) accum prepend s.name.toString
       else {
         val enclosing_class = s.effectiveOwner.enclClass
         val inner = innerClassSymbolFor(s)
@@ -126,9 +126,9 @@ object ScalaCompilerUtils {
           if (innerClassBuffer.contains(inner))
             s.name prepend (if (enclosing_class.needsModuleSuffix) enclosing_class.moduleSuffix else "")
           else
-            s.name prepend separator
+            s.name prepend separator.toString
 
-        fullNameInternal(enclosing_class, separator, accum prepend name)
+        fullNameInternal(enclosing_class, separator, accum prepend name.toString)
       }
     }
 

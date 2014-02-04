@@ -1,16 +1,15 @@
 package org.scommon.security
 
 import org.scalatest.junit.JUnitRunner
-import org.scalatest.{SeveredStackTraces, FunSuite}
+import org.scalatest.{Matchers, SeveredStackTraces, FunSuite}
 import org.junit.runner.RunWith
-import org.scalatest.matchers.ShouldMatchers
 import java.security.{CodeSigner, CodeSource, Policy}
 import java.net.{SocketPermission, URL}
 import java.util.{UUID, PropertyPermission}
 
 @RunWith(classOf[JUnitRunner])
 class PermissionsTest extends FunSuite
-with ShouldMatchers
+with Matchers
 with SeveredStackTraces {
   test("Basic permission creation works") {
     val p = Permission("java.util.PropertyPermission", "file.separator", "read")
@@ -72,7 +71,7 @@ with SeveredStackTraces {
     SecurityProfile.get("basic") should equal (Some(profile))
     SecurityProfile("basic") should equal (profile)
     SecurityProfile.get(s"a-profile-that-should-never-exist-${UUID.randomUUID().toString}") should be(None)
-    evaluating { SecurityProfile(s"a-profile-that-should-never-exist-${UUID.randomUUID().toString}") } should produce [IllegalStateException]
+    an [IllegalStateException] should be thrownBy { SecurityProfile(s"a-profile-that-should-never-exist-${UUID.randomUUID().toString}") } 
 
     val perms = profile.grants.permissions
     perms should contain (Permission(new PropertyPermission("*", "read")))

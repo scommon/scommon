@@ -1,4 +1,5 @@
 
+
 libraryDependencies += "com.typesafe" % "config" % "1.0.2"
 
 libraryDependencies += "com.netflix.rxjava" % "rxjava-scala" % "0.16.1"
@@ -13,11 +14,11 @@ libraryDependencies += "com.googlecode.scalaconcurrency" % "scalaconcurrency" % 
 
 libraryDependencies += "com.googlecode.classgenerator" % "classgenerator" % "0.6.8-2.10.2"
 
-libraryDependencies += "org.scala-lang" % "scala-compiler" % "2.10.2"
+libraryDependencies += "org.scala-lang" % "scala-compiler" % "2.11.0-M8"
 
-libraryDependencies += "org.scala-lang" % "scala-reflect" % "2.10.2"
+libraryDependencies += "org.scala-lang" % "scala-reflect" % "2.11.0-M8"
 
-libraryDependencies += "org.scalatest" %% "scalatest" % "2.0.M5b" % "test"
+libraryDependencies += "org.scalatest" %% "scalatest" % "2.1.RC1" % "test"
 
 libraryDependencies += "junit" % "junit" % "4.11" % "test"
 

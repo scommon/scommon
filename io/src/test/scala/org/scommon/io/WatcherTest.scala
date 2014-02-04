@@ -1,8 +1,7 @@
 package org.scommon.io
 
 import org.scalatest.junit.JUnitRunner
-import org.scalatest.{BeforeAndAfterAll, FunSuite}
-import org.scalatest.matchers.ShouldMatchers
+import org.scalatest.{Matchers, BeforeAndAfterAll, FunSuite}
 import org.scalatest.concurrent.AsyncAssertions
 import org.junit.runner.RunWith
 
@@ -20,7 +19,7 @@ import Utils._
 @RunWith(classOf[JUnitRunner])
 class WatcherTest
   extends FunSuite
-  with ShouldMatchers
+  with Matchers
   with BeforeAndAfterAll
   with AsyncAssertions
 {

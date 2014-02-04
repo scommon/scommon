@@ -2,7 +2,50 @@ package whatever.blah
 
 trait Bar
 
-case class SomeCaseClass() extends org.scommon.script.engine.MyTestTrait
+//isAbstractType: false
+//isAbstractClass: false
+//isTrait: false
+//isClass: true
+//isCaseClass: false
+//isModule: false
+//isModuleClass: false
+class NormalClass(arg1: String) extends org.scommon.script.engine.MyTestTrait
+
+//isAbstractType: false
+//isAbstractClass: true
+//isTrait: true
+//isClass: true
+//isCaseClass: false
+//isModule: false
+//isModuleClass: false
+trait ATrait extends org.scommon.script.engine.MyTestTrait
+
+//isAbstractType: false
+//isAbstractClass: true
+//isTrait: false
+//isClass: true
+//isCaseClass: false
+//isModule: false
+//isModuleClass: false
+abstract class AbstractClass extends org.scommon.script.engine.MyTestTrait
+
+//isAbstractType: false
+//isAbstractClass: false
+//isTrait: false
+//isClass: true
+//isCaseClass: false
+//isModule: false
+//isModuleClass: false
+case object ACaseObject extends org.scommon.script.engine.MyTestTrait
+
+//isAbstractType: false
+//isAbstractClass: false
+//isTrait: false
+//isClass: true
+//isCaseClass: true
+//isModule: false
+//isModuleClass: false
+case class SomeCaseClass(var wha: String, var dude: Int) extends org.scommon.script.engine.MyTestTrait
 
 object A {
   object Baz extends org.scommon.script.engine.MyTestTrait {

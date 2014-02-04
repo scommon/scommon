@@ -93,18 +93,19 @@ extends Engine[Scala, T] {
         , class_filter_discovered_entry_points
       )
 
-    val compiler = ScalaCompiler(compiler_settings, class_filters ++ settings.specific.phaseInterceptors) { msg =>
-      onMessageReceived(context, msg)
-    } { progress =>
-      onProgressUpdate(context, progress)
-    }
+    val compiler =
+      ScalaCompiler(compiler_settings, class_filters ++ settings.specific.phaseInterceptors) { msg =>
+        onMessageReceived(context, msg)
+      } { progress =>
+        onProgressUpdate(context, progress)
+      }
 
     compiler.compile(sources)
 
     val transformed_discovered_types: CompileResult.SerializableDiscoveredTypeMap = {
       for ((name, descriptions) <- class_filter_discovered_types)
-        yield (name, descriptions.toIterable)
-    }.toMap withDefaultValue Iterable()
+        yield (name, descriptions.toSet)
+    }.toMap withDefaultValue immutable.Set()
 
     //The idea here is to locate the bytes associated with found class descriptions.
     //Go through the descriptions and find the associated class files.
@@ -116,7 +117,7 @@ extends Engine[Scala, T] {
       //a forward slash and then starting at the output_dir, walk forward until we find the class file.
       val split = description.javaClassFileName.split('/').zipWithIndex
       val last = if (split.length > 0) split.length - 1 else 0
-      val compiled_class = split.foldLeft(output_dir){ case (dir, (nxt, idx)) => dir.lookupPath(nxt, idx < last) }
+      val compiled_class = split.foldLeft(output_dir){ case (dir, (nxt, idx)) => dir.lookupName(nxt, idx < last) }
 
       //It's possible that classes will show up in the list of classes but not have a backing class file. If that's the case, then
       //just skip it. I'm not exactly sure why this is the case.
@@ -134,7 +135,7 @@ extends Engine[Scala, T] {
     onSourceCompiled(
         context
       , CompileResult(
-          class_filter_discovered_entry_points
+          class_filter_discovered_entry_points.toSet
         , transformed_discovered_types
         , ClassRegistry(entries)
       )
@@ -229,6 +230,8 @@ extends Engine[Scala, T] {
           , javaClassName          = true_java_class_name
           , javaClassFileName      = true_java_class_name.replaceAllLiterally(".", "/") + ".class"
           , purportedJavaClassName = (if (sym.isClass || (sym.isModule && !sym.isMethod)) sym.javaClassName else sym.javaSimpleName).toString
+          , isTermName             = sym.name.isTermName
+          , isTypeName             = sym.name.isTypeName
         )
 
         //Hold on to the list of discovered classes.

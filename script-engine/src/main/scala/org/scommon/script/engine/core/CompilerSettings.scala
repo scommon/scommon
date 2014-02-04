@@ -22,17 +22,17 @@ trait CompilerSettings[+TSpecific <: CompilerSpecificSettings] extends StandardF
     //Deliberately omit specific, handlers, typeFilters, and relativeCustomClassPath since they're not meant to be set directly.
   )
 
-  def handlers: CompileEventHandlers
+  def handlers          : CompileEventHandlers
 
-  def inMemory: Boolean
-  def relativeDirectory: Path
-  def outputDirectory: Path
-  def options: Iterable[String]
+  def inMemory          : Boolean
+  def relativeDirectory : Path
+  def outputDirectory   : Path
+  def options           : Iterable[String]
   def temporaryDirectory: Path
-  def classPath: Iterable[String]
-  def bootClassPath: Iterable[String]
-  def customClassPath: Iterable[String]
-  def typeFilters: Iterable[CompilerTypeFilter]
+  def classPath         : Iterable[String]
+  def bootClassPath     : Iterable[String]
+  def customClassPath   : Iterable[String]
+  def typeFilters       : Iterable[CompilerTypeFilter]
 
   final def relativeCustomClassPath: Iterable[String] = {
     val resolved = (

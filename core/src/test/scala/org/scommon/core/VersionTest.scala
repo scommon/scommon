@@ -1,13 +1,12 @@
 package org.scommon.core
 
 import org.scalatest.junit.JUnitRunner
-import org.scalatest.{SeveredStackTraces, FunSuite}
+import org.scalatest.{Matchers, SeveredStackTraces, FunSuite}
 import org.junit.runner.RunWith
-import org.scalatest.matchers.ShouldMatchers
 
 @RunWith(classOf[JUnitRunner])
 class VersionTest extends FunSuite
-                     with ShouldMatchers
+                     with Matchers
                      with SeveredStackTraces {
   private val FULL_VERSION_NUMBER:String = "1.2.3"
 

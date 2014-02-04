@@ -1,9 +1,8 @@
 package org.scommon.script.engine
 
 import org.scalatest.junit.JUnitRunner
-import org.scalatest.{SeveredStackTraces, FunSuite}
+import org.scalatest.{Matchers, SeveredStackTraces, FunSuite}
 import org.junit.runner.RunWith
-import org.scalatest.matchers.ShouldMatchers
 import com.typesafe.config.ConfigFactory
 import com.typesafe.config.ConfigException.ValidationFailed
 
@@ -12,7 +11,7 @@ import org.scommon.script.engine.core.Engine
 
 @RunWith(classOf[JUnitRunner])
 class ConfigurationTest extends FunSuite
-with ShouldMatchers
+with Matchers
 with SeveredStackTraces {
   import core.Utils._
 
