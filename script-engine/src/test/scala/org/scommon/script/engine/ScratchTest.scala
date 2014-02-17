@@ -134,6 +134,7 @@ class ScratchTest extends FunSuite
         val engine = Engine.newEngine[Scala](my)
 
         engine.toObservable(Observer {
+          //Successfully compiled
           case CompileUpdate(true, _, _, Some(result)) =>
             println(s">>>>>>>>>> Discovered: ${result.discovered[MyTestTrait]}")
             for(d <- result.discovered[MyTestTrait]) {
@@ -143,6 +144,9 @@ class ScratchTest extends FunSuite
                 println(s"INSTANCE!!! $instance ${instance.getClass}")
               }
             }
+          //Error during compilation
+          case CompileUpdate(true, _, msg, None) =>
+            println(s"Failed compile: $msg")
           case _ =>
         })
 

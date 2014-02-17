@@ -48,7 +48,18 @@ object CompileResult {
     }
 
   def instantiate[T](description: ClassDescription, classLoader: ClassLoader)(args: Any*): Option[T] = {
-    import scala.language.experimental.macros
+    instantiateWithIterableArgumentTypes(description, classLoader,
+      for(arg <- args)
+        yield if (arg != null) arg.getClass else classOf[Object],
+      args
+    )
+  }
+
+  def instantiateWithArgumentTypes[T](description: ClassDescription, classLoader: ClassLoader)(argTypes: Class[_]*)(args: Any*): Option[T] =
+    instantiateWithIterableArgumentTypes(description, classLoader, argTypes, args)
+
+  private[this] def instantiateWithIterableArgumentTypes[T](description: ClassDescription, classLoader: ClassLoader, argTypes: Seq[Class[_]], args: Seq[Any]): Option[T] = {
+    //import scala.language.experimental.macros
     //import c.universe
 
     require(args.hasDefiniteSize, s"args must have a definite size")
@@ -56,6 +67,11 @@ object CompileResult {
     try {
       val runtime_mirror = universe.runtimeMirror(classLoader)
       val is_module = description.isTermName
+
+      //If what's requested is a module (object) and arguments have been given,
+      //then we should assume that we should not instantiate and return the module.
+      if (is_module && !argTypes.isEmpty)
+        return None
 
       if (is_module)
         return Some {
@@ -66,82 +82,110 @@ object CompileResult {
           .asInstanceOf[T]
         }
 
-      val args_size = args.size
-      val args_type = args map (arg => runtime_mirror.reflect(arg).symbol.typeSignature)
-      //println(args_type)
-
       val cls = runtime_mirror.staticClass(description.javaClassName)
       if (cls.isAbstractClass)
         return None
 
-      //val arg_symbols = args map (arg => runtime_mirror.classSymbol(arg.getClass).asClass)
-      val tb = runtime_mirror.mkToolBox()
-      val dummyArgs = args.map(arg => q"null : ${runtime_mirror.classSymbol(arg.getClass).asClass.name}" /* IDE hint */.asInstanceOf[tb.u.Tree])
-      val z = q"new $cls(..$dummyArgs)" /* IDE hint */.asInstanceOf[tb.u.Tree]
-      val t = tb.typecheck(z, withImplicitViewsDisabled = false, withMacrosDisabled = true)
-      if (t.isEmpty)
+      val toolbox =
+        runtime_mirror.mkToolBox()
+
+      //Create an AST that resembles trying to cast null as an instance of each provided arg's class.
+      val dummy_parameter_tree_for_finding_constructor =
+        argTypes map { arg_class =>
+          require(arg_class ne null, s"A class must be provided for every argument")
+
+          q"null : ${runtime_mirror.classSymbol(arg_class).asClass.name}" /* IDE hint */.asInstanceOf[toolbox.u.Tree]
+        }
+
+      //Create an AST that represents instantiating the requested class given a list of parameters with the provided types.
+      //Expression looks like:
+      //  new Foo(null: TypeOfArg1, null: TypeOfArg2, ..., null: TypeOfArgN)
+      val dummy_instantiation_tree_for_finding_constructor = q"new $cls(..$dummy_parameter_tree_for_finding_constructor)" /* IDE hint */.asInstanceOf[toolbox.u.Tree]
+
+      //Use the toolbox typecheck() method to find the proper constructor given the arguments.
+      //If one cannot be found, an exception will be thrown. Do not enable "silent" since we don't want an
+      //error logged.
+      val type_checked_instantiation_tree_for_finding_constructor =
+        toolbox.typecheck(
+          dummy_instantiation_tree_for_finding_constructor,
+          withImplicitViewsDisabled = false,
+          withMacrosDisabled = true
+        )
+
+      if (type_checked_instantiation_tree_for_finding_constructor.isEmpty)
         return None
 
-      t match {
-        case q"new ${_}(..$foo)" =>
-          val bar: List[Tree] = foo
-          for (b <- bar)
-            println(b)
-          println(foo)
+      //After doing this, a List will be provided that contains the exact types of the parameters in the proper constructor.
+      //Afterwards it's simply a matter of traversing constructors and finding an exact match.
+      val list_of_exact_parameter_types_for_constructor: List[universe.Type] = type_checked_instantiation_tree_for_finding_constructor match {
+        //Extract the AST representing the parameters and their types for the found matching constructor.
+        case q"new ${_}(..$type_checked_parameters_tree)" =>
+          //Pull out the type of each parameter.
+          for (tree_for_parameter <- type_checked_parameters_tree: List[Tree]) yield tree_for_parameter match {
+
+            //Given an expression like:
+            // (null: scala.Predef.String)
+            //Return:
+            // scala.Predef.String
+            case Typed(_ /* expression */, tree_for_type_of_constructor_parameter: TypeTree) =>
+              val type_of_constructor_parameter = tree_for_type_of_constructor_parameter.tpe.normalize
+              type_of_constructor_parameter
+
+            //Given an implicit view like:
+            //  scala.this.Predef.Integer2int((null: java.lang.Integer)): scala.Int
+            //Return:
+            // scala.Int
+            case Apply(fun  @ Select(_, _), List(Typed(_, _))) =>
+              val type_of_constructor_parameter = fun.symbol.asMethod.returnType.normalize
+              type_of_constructor_parameter
+
+            //Unknown tree -- get out of here.
+            case _ =>
+              return None
+          }
         case _ =>
+          return None
       }
 
-      for(x <- t)
-        println(x)
+      val args_size = argTypes.size
 
-//      t match {
-//        case TypeTree(foo) =>
-//      }
-
-      val o = t.symbol
-
-      println(t)
-
-      println(cls)
-      println("isAbstractType: " + cls.isAbstractType)
-      println("isAbstractClass: " + cls.isAbstractClass)
-      println("isTrait: " + cls.isTrait)
-      println("isClass: " + cls.isClass)
-      println("isCaseClass: " + cls.isCaseClass)
-      println("isModule: " + cls.isModule)
-      println("isModuleClass: " + cls.isModuleClass)
       val cls_type = cls.typeSignature
-      println(cls_type)
       val cls_mirror = runtime_mirror.reflectClass(cls)
-      println(cls_mirror)
-      val constructors = cls_type.members.filter(m => m.isMethod && m.asMethod.isConstructor)
-      println(constructors)
+
+      //TODO: Are multiple parameter lists in a constructor a problem here?
+
       val matching_constructors: Iterable[universe.type#MethodSymbol] =
         for {
-          c: universe.type#Symbol <- constructors
-          m = c.asMethod
-          f = m.paramss.head
-          _ = println(f)
-          if f.hasDefiniteSize && f.size == args_size
-          parameters_match = f.zip(args_type).forall {
-            case (x, y) => println(s"${x.typeSignature} vs $y"); x.typeSignature <:< y
+          member <- cls_type.members
+          if member.isMethod
+          method = member.asMethod
+          if method.isConstructor
+          constructor = method
+
+          single_parameter_list <- constructor.paramss.headOption //Get the first parameter list
+
+          //_ = println(f)
+          if single_parameter_list.hasDefiniteSize && single_parameter_list.size == args_size
+
+          //Determine if the parameter types for this constructor matches what we're looking for.
+          parameters_match = single_parameter_list.zip(list_of_exact_parameter_types_for_constructor).forall {
+            case (x, y) =>
+              x.typeSignature =:= y
           }
           if parameters_match
-        } yield m
+        } yield constructor
 
       for {
         constructor <- matching_constructors.headOption
         constructor_mirror = cls_mirror.reflectConstructor(constructor)
-      } yield constructor_mirror(args).asInstanceOf[T]
+      } yield constructor_mirror(args:_*).asInstanceOf[T]
 
     } catch {
       case t:ToolBoxError =>
         //Should be thrown when unable to find a suitable constructor.
         //Possibly b/c there are too many arguments, not enough, or not the right types.
-        println(t)
         None
       case t: Throwable =>
-        println(t)
         None
     }
   }
