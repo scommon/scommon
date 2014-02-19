@@ -47,6 +47,10 @@ case object ACaseObject extends org.scommon.script.engine.MyTestTrait
 //isModuleClass: false
 case class SomeCaseClass(var wha: String, var dude: Int) extends org.scommon.script.engine.MyTestTrait
 
+case class SomeCaseClassWithMultipleParameterLists(var wha: String)(var dude: Int) extends Bar with org.scommon.script.engine.MyTestTrait {
+  override def toString = s"SomeCaseClassWithMultipleParameterLists($wha)($dude)"
+}
+
 object A {
   object Baz extends org.scommon.script.engine.MyTestTrait {
     class Foo extends Bar with org.scommon.script.engine.MyTestTrait

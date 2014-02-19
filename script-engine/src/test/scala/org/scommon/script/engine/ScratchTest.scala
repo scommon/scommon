@@ -138,7 +138,8 @@ class ScratchTest extends FunSuite
           case CompileUpdate(true, _, _, Some(result)) =>
             println(s">>>>>>>>>> Discovered: ${result.discovered[MyTestTrait]}")
             for(d <- result.discovered[MyTestTrait]) {
-              val found = CompileResult.instantiate[MyTestTrait](d, result.toClassLoader())("1", 2)
+              val found = CompileResult.instantiateWithParameterLists[MyTestTrait](d, result.toClassLoader())(Seq("ABC"), Seq(200))
+              //val found = CompileResult.instantiate[MyTestTrait](d, result.toClassLoader())("1", 2)
               if (found.isDefined) {
                 val instance = found.get
                 println(s"INSTANCE!!! $instance ${instance.getClass}")
