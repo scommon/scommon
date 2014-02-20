@@ -93,7 +93,7 @@ object CompileResult {
       val toolbox =
         runtime_mirror.mkToolBox()
 
-      //Create an AST that resembles trying to cast null as an instance of each provided arg's class.
+      //Create an AST that resembles trying to cast ??? as an instance of each provided arg's class.
       val dummy_parameter_tree_for_finding_constructor =
         for (parameter_list_types <- argTypes) yield {
           for (arg_class <- parameter_list_types) yield {
