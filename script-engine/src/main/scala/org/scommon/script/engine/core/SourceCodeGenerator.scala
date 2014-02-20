@@ -63,7 +63,7 @@ object SourceCodeGenerator {
 //  }
 }
 
-sealed class SourceCodeGenerator[TSource >: URI, TCompilerSource >: SourceCode[TSource], TContext >: CompileContext](
+sealed class SourceCodeGenerator[TSource <: URI, TCompilerSource <: SourceCode[TSource], TContext <: CompileContext](
   override val initial: Iterable[TCompilerSource]
 ) extends Generator[TCompilerSource, TContext] {
 

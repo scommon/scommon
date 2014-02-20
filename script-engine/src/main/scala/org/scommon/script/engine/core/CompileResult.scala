@@ -101,7 +101,7 @@ object CompileResult {
           for (arg_class <- parameter_list_types) yield {
             require(arg_class ne null, s"A class must be provided for every argument")
 
-            q"null : ${runtime_mirror.classSymbol(arg_class).asClass.name}" /* IDE hint */.asInstanceOf[toolbox.u.Tree]
+            q"??? : ${runtime_mirror.classSymbol(arg_class).asClass.name}" /* IDE hint */.asInstanceOf[toolbox.u.Tree]
           }
         }
 
