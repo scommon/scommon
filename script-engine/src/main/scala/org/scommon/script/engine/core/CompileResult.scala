@@ -68,8 +68,6 @@ object CompileResult {
     //import scala.language.experimental.macros
     //import c.universe
 
-    require(args.hasDefiniteSize, s"args must have a definite size")
-
     try {
       val runtime_mirror = universe.runtimeMirror(classLoader)
       val is_module = description.isTermName
