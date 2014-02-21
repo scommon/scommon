@@ -99,16 +99,16 @@ object CompileResult {
           for (arg_class <- parameter_list_types) yield {
             require(arg_class ne null, s"A class must be provided for every argument")
 
-            q"??? : ${runtime_mirror.classSymbol(arg_class).asClass.name}" /* IDE hint */.asInstanceOf[toolbox.u.Tree]
+            q"??? : ${runtime_mirror.classSymbol(arg_class).name}" /* IDE hint */.asInstanceOf[toolbox.u.Tree]
           }
         }
 
       //Create an AST that represents instantiating the requested class given a list of parameters with the provided types.
       //Expression looks like:
-      //  new Foo(null: TypeOfArg1ParameterList1, null: TypeOfArg2ParameterList1, ..., null: TypeOfArgNParameterList1)
-      //         (null: TypeOfArg1ParameterList2, null: TypeOfArg2ParameterList2, ..., null: TypeOfArgNParameterList2)
+      //  new Foo(??? : TypeOfArg1ParameterList1, ??? : TypeOfArg2ParameterList1, ..., ??? : TypeOfArgNParameterList1)
+      //         (??? : TypeOfArg1ParameterList2, ??? : TypeOfArg2ParameterList2, ..., ??? : TypeOfArgNParameterList2)
       //         ...
-      //         (null: TypeOfArg1ParameterListM, null: TypeOfArg2ParameterListM, ..., null: TypeOfArgNParameterListM)
+      //         (??? : TypeOfArg1ParameterListM, ??? : TypeOfArg2ParameterListM, ..., ??? : TypeOfArgNParameterListM)
       val dummy_instantiation_tree_for_finding_constructor =
         q"new $cls(...$dummy_parameter_tree_for_finding_constructor)" /* IDE hint */.asInstanceOf[toolbox.u.Tree]
 
@@ -119,77 +119,21 @@ object CompileResult {
         toolbox.typecheck(
           dummy_instantiation_tree_for_finding_constructor,
           withImplicitViewsDisabled = false,
-          withMacrosDisabled = true
+          withMacrosDisabled = false
         )
 
-      if (type_checked_instantiation_tree_for_finding_constructor.isEmpty)
-        return None
+      type_checked_instantiation_tree_for_finding_constructor match {
+        //Extract the constructor if found.
+        case Apply(Apply(constructor @ Select(_, nme.CONSTRUCTOR), _), _) =>
+          //Use extra variables here simply for use in debugging.
+          val cls_mirror = runtime_mirror.reflectClass(cls)
+          val constructor_mirror = cls_mirror.reflectConstructor(constructor.symbol.asMethod)
 
-      //After doing this, a List will be provided that contains the exact types of the parameters in the proper constructor.
-      //Afterwards it's simply a matter of traversing constructors and finding an exact match.
-      val list_of_parameter_lists_of_exact_parameter_types_for_constructor: List[List[universe.Type]] = type_checked_instantiation_tree_for_finding_constructor match {
-        //Extract the AST representing the parameters and their types for the found matching constructor.
-        case q"new ${_}(...$type_checked_parameter_list_tree)" =>
-          //Pull out the type of each parameter.
-          for(type_checked_parameters_tree <- type_checked_parameter_list_tree) yield {
-            for (tree_for_parameter <- type_checked_parameters_tree: List[Tree]) yield tree_for_parameter match {
-
-              //Given an expression like:
-              // (null: scala.Predef.String)
-              //Return:
-              // scala.Predef.String
-              case Typed(_ /* expression */, tree_for_type_of_constructor_parameter: TypeTree) =>
-                val type_of_constructor_parameter = tree_for_type_of_constructor_parameter.tpe.normalize
-                type_of_constructor_parameter
-
-              //Given an implicit view like:
-              //  scala.this.Predef.Integer2int((null: java.lang.Integer)): scala.Int
-              //Return:
-              // scala.Int
-              case Apply(fun  @ Select(_, _), List(Typed(_, _))) =>
-                val type_of_constructor_parameter = fun.symbol.asMethod.returnType.normalize
-                type_of_constructor_parameter
-
-              //Unknown tree -- get out of here.
-              case _ =>
-                return None
-            }
-          }
+          //Instantiate a new instance of T with the provided arguments.
+          Option(constructor_mirror(args.flatten:_*).asInstanceOf[T])
         case _ =>
-          return None
+          None
       }
-
-      val cls_type = cls.typeSignature
-      val cls_mirror = runtime_mirror.reflectClass(cls)
-
-      val matching_constructors: Iterable[universe.type#MethodSymbol] =
-        for {
-          member <- cls_type.members
-          if member.isMethod
-          method = member.asMethod
-          if method.isConstructor
-          constructor = method
-
-          all_match = constructor.paramss.zipAll(list_of_parameter_lists_of_exact_parameter_types_for_constructor, List(), List()).forall {
-            case (candidate_parameter_list, exactly_typed_parameter_list) =>
-              //Determine if the parameter types for this constructor matches what we're looking for.
-              val parameters_match =
-                candidate_parameter_list.hasDefiniteSize &&
-                candidate_parameter_list.size == exactly_typed_parameter_list.size &&
-                candidate_parameter_list.zip(exactly_typed_parameter_list).forall { case (x, y) =>
-                  x.typeSignature =:= y
-                }
-
-              parameters_match
-          }
-
-          if all_match
-        } yield constructor
-
-      for {
-        constructor <- matching_constructors.headOption
-        constructor_mirror = cls_mirror.reflectConstructor(constructor)
-      } yield constructor_mirror(args.flatten:_*).asInstanceOf[T]
 
     } catch {
       case t: ToolBoxError =>
