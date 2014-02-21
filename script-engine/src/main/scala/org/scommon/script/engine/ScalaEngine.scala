@@ -100,46 +100,59 @@ extends Engine[Scala, T] {
         onProgressUpdate(context, progress)
       }
 
-    compiler.compile(sources)
+    try {
+      compiler.compile(sources)
 
-    val transformed_discovered_types: CompileResult.SerializableDiscoveredTypeMap = {
-      for ((name, descriptions) <- class_filter_discovered_types)
-        yield (name, descriptions.toSet)
-    }.toMap withDefaultValue immutable.Set()
+      val transformed_discovered_types: CompileResult.SerializableDiscoveredTypeMap = {
+        for ((name, descriptions) <- class_filter_discovered_types)
+          yield (name, descriptions.toSet)
+      }.toMap withDefaultValue immutable.Set()
 
-    //The idea here is to locate the bytes associated with found class descriptions.
-    //Go through the descriptions and find the associated class files.
+      //The idea here is to locate the bytes associated with found class descriptions.
+      //Go through the descriptions and find the associated class files.
 
-    val entries = mutable.Stack[ClassEntry]()
+      val entries = mutable.Stack[ClassEntry]()
 
-    for ((_, description) <- class_filter_class_descriptions) {
-      //Walk the virtual directories and find the associated class files by splitting the .javaClassFileName by
-      //a forward slash and then starting at the output_dir, walk forward until we find the class file.
-      val split = description.javaClassFileName.split('/').zipWithIndex
-      val last = if (split.length > 0) split.length - 1 else 0
-      val compiled_class = split.foldLeft(output_dir){ case (dir, (nxt, idx)) => dir.lookupName(nxt, idx < last) }
+      for ((_, description) <- class_filter_class_descriptions) {
+        //Walk the virtual directories and find the associated class files by splitting the .javaClassFileName by
+        //a forward slash and then starting at the output_dir, walk forward until we find the class file.
+        val split = description.javaClassFileName.split('/').zipWithIndex
+        val last = if (split.length > 0) split.length - 1 else 0
+        val compiled_class = split.foldLeft(output_dir){ case (dir, (nxt, idx)) => dir.lookupName(nxt, idx < last) }
 
-      //It's possible that classes will show up in the list of classes but not have a backing class file. If that's the case, then
-      //just skip it. I'm not exactly sure why this is the case.
+        //It's possible that classes will show up in the list of classes but not have a backing class file. If that's the case, then
+        //just skip it. I'm not exactly sure why this is the case.
 
-      //if (compiled_class eq null) {
-      //  throw new IllegalStateException(s"Scala scripting engine was unable to locate the associated compiled class for ${description.javaClassFileName}")
-      //}
+        //if (compiled_class eq null) {
+        //  throw new IllegalStateException(s"Scala scripting engine was unable to locate the associated compiled class for ${description.javaClassFileName}")
+        //}
 
-      if (compiled_class ne null) {
-        entries push ClassEntry(description, ClassContents(compiled_class.sizeOption.getOrElse(0))(compiled_class.toByteArray))
+        if (compiled_class ne null) {
+          entries push ClassEntry(description, ClassContents(compiled_class.sizeOption.getOrElse(0))(compiled_class.toByteArray))
+        }
       }
-    }
 
-    //Notify everyone that we've completed compilation.
-    onSourceCompiled(
-        context
-      , CompileResult(
-          class_filter_discovered_entry_points.toSet
-        , transformed_discovered_types
-        , ClassRegistry(entries)
+      //Notify everyone that we've completed compilation.
+      onCompileCompleted(
+          context
+        , CompileResult(
+            class_filter_discovered_entry_points.toSet
+          , transformed_discovered_types
+          , ClassRegistry(entries)
+        )
       )
-    )
+    } catch {
+      case t: Throwable =>
+        onFatalError(context, t)
+        //onCompileCompleted(
+        //    context
+        //  , CompileResult(
+        //      immutable.Set()
+        //    , Map()
+        //    , ClassRegistry(mutable.Stack[ClassEntry]())
+        //  )
+        //)
+    }
   }
 
   private[this] trait ClassFilter {

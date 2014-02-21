@@ -1,15 +1,19 @@
 package org.scommon.script.engine.core
 
 import com.typesafe.config.{ConfigFactory, Config}
-import scala.reflect.internal.MissingRequirementError
+
+import scala.util._
 import scala.collection.JavaConversions
+import scala.reflect.internal.MissingRequirementError
+
 import java.util.concurrent.locks.ReentrantLock
 import java.net.URI
-import org.scommon.reactive.Generator
-import org.scommon.reflect._
+
 import rx.lang.scala.{Subscription, Observable}
 
 import org.scommon.core._
+import org.scommon.reflect._
+import org.scommon.reactive.Generator
 import org.scommon.script.engine.{Scala, ScalaEngine}
 
 object Engine {
@@ -47,7 +51,7 @@ object Engine {
     factories()
 
   /**
-   * Warning: the first time this is called will cache and lock the produced list of
+   * Warning: the first time this is called it will cache and lock the produced list of
    * [[org.scommon.script.engine.core.EngineFactory]] instances. If you need to reload the list, you should call
    * [[org.scommon.script.engine.core.Engine#factoriesFromConfiguration]] instead.
    *
@@ -210,45 +214,50 @@ trait Engine[+S <: CompilerSpecificSettings, +T] extends Closeable {
   private[this] val engine_listeners: CopyOnWriteArrayList[CompileListener] =
     new CopyOnWriteArrayList[CompileListener]()
 
+  def addListener(listener: CompileListener): Unit =
+    engine_listeners.add(listener)
+
+  def removeListener(listener: CompileListener): Unit =
+    engine_listeners.remove(listener)
+
   protected def onMessageReceived(context: CompileContext, message: CompileMessage): Unit = {
-    val update = CompileUpdate(
-        completed = false
-      , message   = Some(message)
-    )
+    val update = CompileMessageReceived(message)
     context.handlers.messageReceived(this, message)
     for(listener <- engine_listeners)
       listener.onUpdate(update)
   }
 
   protected def onProgressUpdate(context: CompileContext, progress: CompileProgress): Unit = {
-    val update = CompileUpdate(
-        completed = false
-      , progress  = Some(progress)
-    )
+    val update = CompileProgressUpdate(progress)
     context.handlers.progressUpdate(this, progress)
     for(listener <- engine_listeners)
       listener.onUpdate(update)
   }
 
-  protected def onSourceCompiled(context: CompileContext, result: CompileResult): Unit = {
-    val update = CompileUpdate(
-        completed = true
-      , result    = Some(result)
-    )
-    context.handlers.sourceCompiled(this, result)
+  protected def onCompileCompleted(context: CompileContext, result: CompileResult): Unit = {
+    val update = CompileCompleted(result)
+    context.handlers.compileCompleted(this, result)
     for(listener <- engine_listeners)
       listener.onUpdate(update)
   }
 
+  protected def onFatalError(context: CompileContext, error: Throwable): Unit = {
+    val update = CompileFatalError(error)
+    context.handlers.fatalError(this, error)
+    for(listener <- engine_listeners)
+      listener.onUpdate(update)
+  }
+
+  //TODO: Separate this out into a reactive library that pimps the Engine with observables.
   def toObservable: Observable[CompileUpdate] = {
     Observable.create[CompileUpdate] { subscriber =>
       val listener = CompileListener(
           fnUpdate = (x) => subscriber.onNext(x)
         , fnClose  = ()  => subscriber.onCompleted()
       )
-      engine_listeners.add(listener)
+      addListener(listener)
       Subscription {
-        engine_listeners.remove(listener)
+        removeListener(listener)
         ()
       }
     }

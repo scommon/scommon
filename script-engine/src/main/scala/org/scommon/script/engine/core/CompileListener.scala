@@ -1,18 +1,10 @@
 package org.scommon.script.engine.core
 
-sealed case class CompileUpdate(
-    completed: Boolean
-  , progress : Option[CompileProgress] = None
-  , message  : Option[CompileMessage]  = None
-  , result   : Option[CompileResult]   = None
-) {
-  override def toString =
-    s"CompileUpdate(completed = $completed" +
-       (if (progress.isDefined) s", ${progress.get}" else s"") +
-       (if (message.isDefined)  s", ${message.get}"  else s"") +
-       (if (result.isDefined)   s", ${result.get}"   else s"") +
-    s")"
-}
+sealed trait CompileUpdate
+sealed case class CompileProgressUpdate(progress: CompileProgress) extends CompileUpdate
+sealed case class CompileMessageReceived(message: CompileMessage) extends CompileUpdate
+sealed case class CompileCompleted(result: CompileResult) extends CompileUpdate
+sealed case class CompileFatalError(error: Throwable) extends CompileUpdate
 
 trait CompileListener {
   def onUpdate(update: CompileUpdate): Unit

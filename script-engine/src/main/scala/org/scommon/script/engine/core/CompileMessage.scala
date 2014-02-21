@@ -12,6 +12,9 @@ sealed case class CompileMessage(
 }
 
 object CompileMessage {
+  def apply(severity: CompileMessageSeverity.EnumVal, message: String): CompileMessage =
+    CompileMessage(severity, message, UnknownPosition)
+
   def apply(severity: CompileMessageSeverity.EnumVal, message: String, line: Int, column: Int): CompileMessage =
     CompileMessage(severity, message, Position(line, column))
 }

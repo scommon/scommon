@@ -7,6 +7,8 @@ import org.junit.runner.RunWith
 import org.scalatest.matchers.ShouldMatchers
 import java.util.UUID
 
+import _root_.scala.util._
+
 import org.scommon.io._
 import Utils._
 import _root_.scala.tools.nsc.{SubComponent, Phase, Settings, Global}
@@ -86,7 +88,7 @@ class ScratchTest extends FunSuite
           //println(s"Progress: $progress")
         }
 
-        my.handlers.sourceCompiled = (_, result) => {
+        my.handlers.compileCompleted = (_, result) => {
           //Execute all found main methods
           for (main <- result.discoverMainMethods()) {
             //println(cls)
@@ -135,7 +137,7 @@ class ScratchTest extends FunSuite
 
         engine.toObservable(Observer {
           //Successfully compiled
-          case CompileUpdate(true, _, _, Some(result)) =>
+          case CompileCompleted(result) =>
             println(s">>>>>>>>>> Discovered: ${result.discovered[MyTestTrait]}")
             for(d <- result.discovered[MyTestTrait]) {
               val found = CompileResult.instantiateWithParameterLists[MyTestTrait](d, result.toClassLoader())(Seq("ABC"), Seq(200))
@@ -145,9 +147,16 @@ class ScratchTest extends FunSuite
                 println(s"INSTANCE!!! $instance ${instance.getClass}")
               }
             }
+
+          //Progress update has been received
+          case CompileProgressUpdate(progress) =>
+            //println(s"$progress")
+
           //Error during compilation
-          case CompileUpdate(true, _, msg, None) =>
-            println(s"Failed compile: $msg")
+          case CompileMessageReceived(msg) =>
+            //println(s"Failed compile: $msg")
+          case CompileFatalError(error) =>
+            //println(s"Fatal error: $error")
           case _ =>
         })
 

@@ -51,6 +51,14 @@ case class SomeCaseClassWithMultipleParameterLists(var wha: String)(var dude: In
   override def toString = s"SomeCaseClassWithMultipleParameterLists($wha)($dude)"
 }
 
+//TODO: Determine why nested classes are throwing an exception in the compiler.
+//      Uncomment the inner class declarations below to see.
+class OuterClass {
+  //class InnerClass {
+  //  //case class InnerInnerClass(var wha: String)(var dude: Int) extends org.scommon.script.engine.MyTestTrait
+  //}
+}
+
 object A {
   object Baz extends org.scommon.script.engine.MyTestTrait {
     class Foo extends Bar with org.scommon.script.engine.MyTestTrait
