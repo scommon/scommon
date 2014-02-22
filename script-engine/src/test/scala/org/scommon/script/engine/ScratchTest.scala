@@ -138,14 +138,12 @@ class ScratchTest extends FunSuite
         engine.toObservable(Observer {
           //Successfully compiled
           case CompileCompleted(result) =>
-            println(s">>>>>>>>>> Discovered: ${result.discovered[MyTestTrait]}")
-            for(d <- result.discovered[MyTestTrait]) {
-              val found = CompileResult.instantiateWithParameterLists[MyTestTrait](d, result.toClassLoader())(Seq("ABC"), Seq(200))
-              //val found = CompileResult.instantiate[MyTestTrait](d, result.toClassLoader())("1", 2)
-              if (found.isDefined) {
-                val instance = found.get
-                println(s"INSTANCE!!! $instance ${instance.getClass}")
-              }
+            //println(s">>>>>>>>>> Discovered: ${result.discovered[MyTestTrait]}")
+            for {
+              d <- result.discovered[MyTestTrait]
+              instance <- CompileResult.instantiateWithParameterLists[MyTestTrait](d, result.toClassLoader())(Seq("ABC"), Seq(200))
+            } {
+              println(s"INSTANCE!!! $instance ${instance.getClass}")
             }
 
           //Progress update has been received
