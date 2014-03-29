@@ -84,14 +84,14 @@ object CompileResult {
         }
 
       val cls = runtime_mirror.staticClass(description.javaClassName)
-      if (cls.isAbstractClass)
+      if (cls.isAbstract)
         return None
 
       val toolbox =
         runtime_mirror.mkToolBox()
 
       val build =
-        universe.build
+        universe.internal.reificationSupport
 
       //Create an AST that resembles a variable of the argument type bound to the argument's value.
       //TODO: Don't use 2 Seqs, instead use a single Seq[(Class[_], Any)]
@@ -100,10 +100,8 @@ object CompileResult {
           for ((arg_class, arg_value) <- parameter_list_types.zip(parameter_list_values)) yield {
             require(arg_class ne null, s"A class must be provided for every argument")
 
-            //Is it alright that I'm naming every argument "x"?
-            //Seems to execute okay, but *should* it?
             val argument =
-              build.setTypeSignature(
+              build.setInfo(
                   build.newFreeTerm("x", arg_value)
                 , runtime_mirror.classSymbol(arg_class).toType
               )

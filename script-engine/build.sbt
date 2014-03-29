@@ -14,11 +14,11 @@ libraryDependencies += "com.googlecode.scalaconcurrency" % "scalaconcurrency" % 
 
 libraryDependencies += "com.googlecode.classgenerator" % "classgenerator" % "0.6.8-2.10.2"
 
-libraryDependencies += "org.scala-lang" % "scala-compiler" % "2.11.0-M8"
+libraryDependencies += "org.scala-lang" % "scala-compiler" % "2.11.0-RC3"
 
-libraryDependencies += "org.scala-lang" % "scala-reflect" % "2.11.0-M8"
+libraryDependencies += "org.scala-lang" % "scala-reflect" % "2.11.0-RC3"
 
-libraryDependencies += "org.scalatest" %% "scalatest" % "2.1.RC1" % "test"
+libraryDependencies += "org.scalatest" %% "scalatest" % "2.1.2" % "test"
 
 libraryDependencies += "junit" % "junit" % "4.11" % "test"
 
