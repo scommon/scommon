@@ -7,9 +7,9 @@ lazy val root = Root(
     core
   , io
   , logging
-  , reflect
   , reactive
   , security
+  , reflect
   , platform
   , script_engine
 )
@@ -22,9 +22,6 @@ lazy val io            = Module("io")
 lazy val logging       = Module("logging")
   .dependsOn(core % "compile")
 
-lazy val reflect       = Module("reflect")
-  .dependsOn(core % "compile")
-
 lazy val reactive      = Module("reactive")
   .dependsOn(core % "compile")
 
@@ -32,6 +29,10 @@ lazy val security      = Module("security")
   .dependsOn(core % "compile")
   .dependsOn(io % "compile")
   .dependsOn(logging % "compile")
+
+lazy val reflect       = Module("reflect")
+  .dependsOn(core % "compile")
+  .dependsOn(security % "compile")
 
 lazy val platform      = Module("platform")
   .dependsOn(core % "compile")

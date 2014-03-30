@@ -1,4 +1,4 @@
-package org.scommon.script.engine.core
+package org.scommon.reflect
 
 import scala.collection._
 import scala.collection.generic.{FilterMonadic, CanBuildFrom}
@@ -12,7 +12,7 @@ trait ClassContents extends Serializable {
 
 object ClassContents {
   @SerialVersionUID(234242438L)
-  private[core] sealed case class InnerClassContents(
+  private[reflect] sealed case class InnerClassContents(
       eventual_size: () => Long
     , eventual_payload: () => Array[Byte]
   ) extends ClassContents {
@@ -68,7 +68,6 @@ object ClassRegistry {
 
 trait ClassRegistry extends FilterMonadic[ClassEntry, Iterable[ClassEntry]]
 with Serializable  {
-  import ClassRegistry._
 
   protected def entries: Map[String, ClassEntry]
 

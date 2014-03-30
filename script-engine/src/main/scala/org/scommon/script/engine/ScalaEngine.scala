@@ -8,6 +8,7 @@ import scala.reflect.internal.util.{NoPosition => SNoPosition, Position => SPosi
 import java.nio.file.{Paths, LinkOption}
 
 import org.scommon.core._
+import org.scommon.reflect._
 import org.scommon.reactive._
 import org.scommon.script.engine.core._
 
@@ -103,7 +104,7 @@ extends Engine[Scala, T] {
     try {
       compiler.compile(sources)
 
-      val transformed_discovered_types: CompileResult.SerializableDiscoveredTypeMap = {
+      val transformed_discovered_types: Mirror.SerializableDiscoveredTypeMap = {
         for ((name, descriptions) <- class_filter_discovered_types)
           yield (name, descriptions.toSet)
       }.toMap withDefaultValue immutable.Set()
@@ -213,7 +214,7 @@ extends Engine[Scala, T] {
       , runsAfterPhases     = List(CompilerPhase.Typer)
       , runsRightAfterPhase = Some(CompilerPhase.Pickler)
       , runsBeforePhases    = List(CompilerPhase.Erasure)
-      , classFilter       = new ClassFilter {
+      , classFilter         = new ClassFilter {
         def apply(global: nsc.Global)(s: global.Symbol, t: global.Type, description: ClassDescription): Unit =
           class_filter(global)(s, t, description)
       }

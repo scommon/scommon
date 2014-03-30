@@ -27,11 +27,12 @@ import _root_.scala.tools.nsc.plugins.{Plugin, PluginComponent}
 import _root_.scala.tools.nsc
 
 import org.scommon.core._
-import org.scommon.script.engine.core._
-
 import org.scommon.reactive._
 import org.scommon.security._
+import org.scommon.reflect.Mirror
 import org.scommon.security.Sandbox
+import org.scommon.script.engine.core._
+
 import rx.lang.scala.Observer
 
 
@@ -141,7 +142,7 @@ class ScratchTest extends FunSuite
             //println(s">>>>>>>>>> Discovered: ${result.discovered[MyTestTrait]}")
             for {
               d <- result.discovered[MyTestTrait]
-              instance <- CompileResult.instantiateWithParameterLists[MyTestTrait](d, result.toClassLoader())(Seq("ABC"), Seq(200))
+              instance <- Mirror.newInstanceWithParameterLists[MyTestTrait](d, result.toClassLoader())(Seq("ABC"), Seq(200))
             } {
               println(s"INSTANCE!!! $instance ${instance.getClass}")
             }
